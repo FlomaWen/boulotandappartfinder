@@ -1,0 +1,77 @@
+<div class="search-section">
+  <h1>Recherche d'Emploi CDI</h1>
+  <p class="subtitle">Trouvez le poste en CDI qui vous correspond</p>
+
+  <form class="search-form" (ngSubmit)="search()">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="keyword">Mot-cle</label>
+        <input id="keyword" type="text" placeholder="Ex: Developpeur, Chef de projet..." [(ngModel)]="filters.keyword" name="keyword" />
+      </div>
+
+      <div class="form-group">
+        <label for="city">Ville</label>
+        <input id="city" type="text" placeholder="Ex: Paris, Lyon..." [(ngModel)]="filters.city" name="city" />
+      </div>
+
+      <div class="form-group">
+        <label for="sector">Secteur</label>
+        <select id="sector" [(ngModel)]="filters.sector" name="sector">
+          <option value="">Tous</option>
+          <option value="Tech">Tech</option>
+          <option value="Digital">Digital</option>
+          <option value="Commerce">Commerce</option>
+          <option value="Finance">Finance</option>
+          <option value="Sante">Sante</option>
+          <option value="Industrie">Industrie</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="minSalary">Salaire min (&euro;/an)</label>
+        <input id="minSalary" type="number" placeholder="30000" [(ngModel)]="filters.minSalary" name="minSalary" />
+      </div>
+
+      <div class="form-group">
+        <label for="remote">Mode de travail</label>
+        <select id="remote" [(ngModel)]="filters.remote" name="remote">
+          <option value="">Tous</option>
+          <option value="Presentiel">Presentiel</option>
+          <option value="Hybride">Hybride</option>
+          <option value="Full remote">Full remote</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="reset()">Reinitialiser</button>
+      <button type="submit" class="btn btn-primary">Rechercher</button>
+    </div>
+  </form>
+
+  @if (hasSearched()) {
+    @if (results().length > 0) {
+      <div class="results-list">
+        @for (job of results(); track job.title) {
+          <div class="result-card">
+            <h3>{{ job.title }}</h3>
+            <p class="card-detail"><strong>Entreprise :</strong> {{ job.company }}</p>
+            <p class="card-detail"><strong>Ville :</strong> {{ job.city }}</p>
+            <p class="card-detail"><strong>Salaire :</strong> {{ job.salary }} &euro;/an</p>
+            <p class="card-detail">{{ job.description }}</p>
+            <div class="card-tags">
+              <span class="tag">{{ job.sector }}</span>
+              <span class="tag">{{ job.remote }}</span>
+              <span class="tag">CDI</span>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <h3>Aucun resultat</h3>
+        <p>Essayez de modifier vos criteres de recherche.</p>
+      </div>
+    }
+  }
+</div>

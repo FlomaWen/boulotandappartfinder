@@ -1,0 +1,76 @@
+<div class="search-section">
+  <h1>Recherche d'Appartement</h1>
+  <p class="subtitle">Trouvez l'appartement ideal selon vos criteres</p>
+
+  <form class="search-form" (ngSubmit)="search()">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="city">Ville</label>
+        <input id="city" type="text" placeholder="Ex: Paris, Lyon..." [(ngModel)]="filters.city" name="city" />
+      </div>
+
+      <div class="form-group">
+        <label for="minPrice">Loyer min (&euro;/mois)</label>
+        <input id="minPrice" type="number" placeholder="300" [(ngModel)]="filters.minPrice" name="minPrice" />
+      </div>
+
+      <div class="form-group">
+        <label for="maxPrice">Loyer max (&euro;/mois)</label>
+        <input id="maxPrice" type="number" placeholder="1500" [(ngModel)]="filters.maxPrice" name="maxPrice" />
+      </div>
+
+      <div class="form-group">
+        <label for="minSurface">Surface min (m&sup2;)</label>
+        <input id="minSurface" type="number" placeholder="20" [(ngModel)]="filters.minSurface" name="minSurface" />
+      </div>
+
+      <div class="form-group">
+        <label for="rooms">Nombre de pieces</label>
+        <input id="rooms" type="number" placeholder="2" [(ngModel)]="filters.rooms" name="rooms" />
+      </div>
+
+      <div class="form-group">
+        <label for="type">Type</label>
+        <select id="type" [(ngModel)]="filters.type" name="type">
+          <option value="">Tous</option>
+          <option value="Studio">Studio</option>
+          <option value="T2">T2</option>
+          <option value="T3">T3</option>
+          <option value="T4">T4</option>
+          <option value="T5+">T5+</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="reset()">Reinitialiser</button>
+      <button type="submit" class="btn btn-primary">Rechercher</button>
+    </div>
+  </form>
+
+  @if (hasSearched()) {
+    @if (results().length > 0) {
+      <div class="results-list">
+        @for (apt of results(); track apt.title) {
+          <div class="result-card">
+            <h3>{{ apt.title }}</h3>
+            <p class="card-detail"><strong>Ville :</strong> {{ apt.city }}</p>
+            <p class="card-detail"><strong>Loyer :</strong> {{ apt.price }} &euro;/mois</p>
+            <p class="card-detail"><strong>Surface :</strong> {{ apt.surface }} m&sup2;</p>
+            <p class="card-detail"><strong>Pieces :</strong> {{ apt.rooms }}</p>
+            <p class="card-detail">{{ apt.description }}</p>
+            <div class="card-tags">
+              <span class="tag">{{ apt.type }}</span>
+              <span class="tag">{{ apt.city }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <h3>Aucun resultat</h3>
+        <p>Essayez de modifier vos criteres de recherche.</p>
+      </div>
+    }
+  }
+</div>

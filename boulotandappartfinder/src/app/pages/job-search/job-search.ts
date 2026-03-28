@@ -1,23 +1,14 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { JobService, Job } from '../../../../backend/src/services/job.service';
 
-interface JobFilters {
+interface Filters {
   keyword: string;
   city: string;
   sector: string;
-  minSalary: number | null;
+  minSalary: number;
   remote: string;
-}
-
-interface Job {
-  title: string;
-  company: string;
-  city: string;
-  sector: string;
-  salary: string;
-  salaryMin: number;
-  remote: string;
-  description: string;
+  experience: string;
 }
 
 @Component({
@@ -26,100 +17,113 @@ interface Job {
   templateUrl: './job-search.html',
   styleUrl: './job-search.scss',
 })
-export class JobSearch {
-  filters: JobFilters = {
+export class JobSearch implements OnInit {
+  filters: Filters = {
     keyword: '',
     city: '',
     sector: '',
-    minSalary: null,
+    minSalary: 25000,
     remote: '',
+    experience: '',
   };
 
   readonly results = signal<Job[]>([]);
-  readonly hasSearched = signal(false);
+  readonly totalCount = signal(0);
+  readonly loading = signal(false);
+  readonly scraping = signal(false);
 
-  private readonly mockData: Job[] = [
-    {
-      title: 'Developpeur Full Stack',
-      company: 'TechCorp',
-      city: 'Paris',
-      sector: 'Tech',
-      salary: '42k - 50k',
-      salaryMin: 42000,
-      remote: 'Hybride',
-      description: 'Rejoignez notre equipe pour developper des applications web modernes.',
-    },
-    {
-      title: 'Chef de Projet Digital',
-      company: 'AgenceWeb',
-      city: 'Lyon',
-      sector: 'Digital',
-      salary: '38k - 45k',
-      salaryMin: 38000,
-      remote: 'Presentiel',
-      description: 'Gestion de projets digitaux pour des clients grands comptes.',
-    },
-    {
-      title: 'Data Analyst',
-      company: 'DataVision',
-      city: 'Bordeaux',
-      sector: 'Tech',
-      salary: '35k - 42k',
-      salaryMin: 35000,
-      remote: 'Full remote',
-      description: 'Analyse de donnees et creation de dashboards pour la direction.',
-    },
-    {
-      title: 'Commercial B2B',
-      company: 'VentePro',
-      city: 'Paris',
-      sector: 'Commerce',
-      salary: '30k - 40k + variable',
-      salaryMin: 30000,
-      remote: 'Presentiel',
-      description: 'Developpement du portefeuille clients en Ile-de-France.',
-    },
-    {
-      title: 'Ingenieur DevOps',
-      company: 'CloudFirst',
-      city: 'Nantes',
-      sector: 'Tech',
-      salary: '45k - 55k',
-      salaryMin: 45000,
-      remote: 'Hybride',
-      description: 'Mise en place et maintien des pipelines CI/CD et infrastructure cloud.',
-    },
-    {
-      title: 'Comptable Senior',
-      company: 'FinanceExpert',
-      city: 'Toulouse',
-      sector: 'Finance',
-      salary: '35k - 42k',
-      salaryMin: 35000,
-      remote: 'Presentiel',
-      description: 'Gestion de la comptabilite generale et analytique.',
-    },
-  ];
+  scrapeKeyword = '';
+  scrapeCity = '';
 
-  search(): void {
-    this.hasSearched.set(true);
-    const filtered = this.mockData.filter((job) => {
-      if (this.filters.keyword) {
-        const kw = this.filters.keyword.toLowerCase();
-        if (!job.title.toLowerCase().includes(kw) && !job.description.toLowerCase().includes(kw)) return false;
-      }
-      if (this.filters.city && !job.city.toLowerCase().includes(this.filters.city.toLowerCase())) return false;
-      if (this.filters.sector && job.sector !== this.filters.sector) return false;
-      if (this.filters.minSalary && job.salaryMin < this.filters.minSalary) return false;
-      if (this.filters.remote && job.remote !== this.filters.remote) return false;
-      return true;
+  constructor(private jobService: JobService) {}
+
+  ngOnInit(): void {
+    this.loadJobs();
+  }
+
+  loadJobs(): void {
+    this.loading.set(true);
+    const filters: Record<string, string | number> = {};
+    if (this.filters.keyword) filters['keyword'] = this.filters.keyword;
+    if (this.filters.city) filters['city'] = this.filters.city;
+    if (this.filters.sector) filters['sector'] = this.filters.sector;
+    if (this.filters.minSalary > 25000) filters['minSalary'] = this.filters.minSalary;
+    if (this.filters.remote) filters['remote'] = this.filters.remote;
+    if (this.filters.experience) filters['experience'] = this.filters.experience;
+
+    this.jobService.getAll(filters).subscribe({
+      next: (data) => {
+        this.results.set(data);
+        this.totalCount.set(data.length);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
-    this.results.set(filtered);
+  }
+
+  onFilterChange(): void {
+    this.loadJobs();
+  }
+
+  updateStatus(job: Job, status: string): void {
+    this.jobService.updateStatus(job.id, status).subscribe(() => {
+      if (status === 'supprime') {
+        this.results.update((list) => list.filter((j) => j.id !== job.id));
+      } else {
+        this.results.update((list) =>
+          list.map((j) => (j.id === job.id ? { ...j, status: status as Job['status'] } : j))
+        );
+      }
+    });
+  }
+
+  openUrl(url: string): void {
+    window.open(url, '_blank');
+  }
+
+  getInitials(company: string): string {
+    return company
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  }
+
+  getPostedLabel(dateStr: string): string {
+    const posted = new Date(dateStr);
+    const now = new Date();
+    const days = Math.floor((now.getTime() - posted.getTime()) / (1000 * 60 * 60 * 24));
+    if (days === 0) return "Aujourd'hui";
+    if (days === 1) return 'Hier';
+    return `Il y a ${days}j`;
+  }
+
+  scrapeJobs(): void {
+    if (!this.scrapeKeyword || !this.scrapeCity) return;
+    this.scraping.set(true);
+    this.jobService.scrape(this.scrapeKeyword, this.scrapeCity).subscribe({
+      next: (res) => {
+        this.scraping.set(false);
+        this.loadJobs();
+        alert(`${res.count} nouvelles offres importees !`);
+      },
+      error: (err) => {
+        this.scraping.set(false);
+        alert('Erreur de scraping: ' + (err.error?.details || err.message));
+      },
+    });
   }
 
   reset(): void {
-    this.filters = { keyword: '', city: '', sector: '', minSalary: null, remote: '' };
-    this.results.set([]);
-    this.hasSearched.set(false);
+    this.filters = {
+      keyword: '',
+      city: '',
+      sector: '',
+      minSalary: 25000,
+      remote: '',
+      experience: '',
+    };
+    this.loadJobs();
   }
 }

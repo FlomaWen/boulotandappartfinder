@@ -1,76 +1,166 @@
-<div class="search-section">
-  <h1>Recherche d'Appartement</h1>
-  <p class="subtitle">Trouvez l'appartement ideal selon vos criteres</p>
+<div class="apartment-page">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Filtres</h2>
+      <button class="reset-btn" (click)="reset()">Reset</button>
+    </div>
 
-  <form class="search-form" (ngSubmit)="search()">
-    <div class="form-grid">
-      <div class="form-group">
-        <label for="city">Ville</label>
-        <input id="city" type="text" placeholder="Ex: Paris, Lyon..." [(ngModel)]="filters.city" name="city" />
+    <!-- Scrape section -->
+    <div class="filter-section scrape-section">
+      <h3>Importer des annonces</h3>
+      <div class="scrape-form">
+        <input type="text" placeholder="Ville (ex: Paris)" [(ngModel)]="scrapeCity" name="scrapeCity" />
+        <input type="number" placeholder="Budget max" [(ngModel)]="scrapeMaxPrice" name="scrapeMaxPrice" />
+        <button class="btn btn-primary btn-sm" (click)="scrapeApartments()" [disabled]="scraping()">
+          {{ scraping() ? 'Scraping...' : 'Scraper LeBonCoin' }}
+        </button>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="minPrice">Loyer min (&euro;/mois)</label>
-        <input id="minPrice" type="number" placeholder="300" [(ngModel)]="filters.minPrice" name="minPrice" />
-      </div>
-
-      <div class="form-group">
-        <label for="maxPrice">Loyer max (&euro;/mois)</label>
-        <input id="maxPrice" type="number" placeholder="1500" [(ngModel)]="filters.maxPrice" name="maxPrice" />
-      </div>
-
-      <div class="form-group">
-        <label for="minSurface">Surface min (m&sup2;)</label>
-        <input id="minSurface" type="number" placeholder="20" [(ngModel)]="filters.minSurface" name="minSurface" />
-      </div>
-
-      <div class="form-group">
-        <label for="rooms">Nombre de pieces</label>
-        <input id="rooms" type="number" placeholder="2" [(ngModel)]="filters.rooms" name="rooms" />
-      </div>
-
-      <div class="form-group">
-        <label for="type">Type</label>
-        <select id="type" [(ngModel)]="filters.type" name="type">
-          <option value="">Tous</option>
-          <option value="Studio">Studio</option>
-          <option value="T2">T2</option>
-          <option value="T3">T3</option>
-          <option value="T4">T4</option>
-          <option value="T5+">T5+</option>
+    <!-- Location -->
+    <div class="filter-section">
+      <h3>Localisation</h3>
+      <div class="select-wrapper">
+        <select [(ngModel)]="filters.city" name="city" (ngModelChange)="onFilterChange()">
+          <option value="">Toutes les villes</option>
+          <option value="Paris">Paris</option>
+          <option value="Lyon">Lyon</option>
+          <option value="Bordeaux">Bordeaux</option>
+          <option value="Toulouse">Toulouse</option>
+          <option value="Nantes">Nantes</option>
+          <option value="Marseille">Marseille</option>
         </select>
       </div>
     </div>
 
-    <div class="form-actions">
-      <button type="button" class="btn btn-secondary" (click)="reset()">Reinitialiser</button>
-      <button type="submit" class="btn btn-primary">Rechercher</button>
-    </div>
-  </form>
+    <!-- Price Range -->
+    <div class="filter-section">
+      <h3>Budget</h3>
+      <label class="radio-option">
+        <input type="radio" name="priceRange" value="500-1000" [(ngModel)]="filters.priceRange" (change)="onPriceRangeChange()" />
+        <span>500 &euro; - 1 000 &euro;</span>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="priceRange" value="1000+" [(ngModel)]="filters.priceRange" (change)="onPriceRangeChange()" />
+        <span>Plus de 1 000 &euro;</span>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="priceRange" value="custom" [(ngModel)]="filters.priceRange" />
+        <span>Personnalise</span>
+      </label>
 
-  @if (hasSearched()) {
-    @if (results().length > 0) {
-      <div class="results-list">
-        @for (apt of results(); track apt.title) {
-          <div class="result-card">
-            <h3>{{ apt.title }}</h3>
-            <p class="card-detail"><strong>Ville :</strong> {{ apt.city }}</p>
-            <p class="card-detail"><strong>Loyer :</strong> {{ apt.price }} &euro;/mois</p>
-            <p class="card-detail"><strong>Surface :</strong> {{ apt.surface }} m&sup2;</p>
-            <p class="card-detail"><strong>Pieces :</strong> {{ apt.rooms }}</p>
-            <p class="card-detail">{{ apt.description }}</p>
-            <div class="card-tags">
-              <span class="tag">{{ apt.type }}</span>
-              <span class="tag">{{ apt.city }}</span>
+      @if (filters.priceRange === 'custom') {
+        <div class="range-slider">
+          <div class="range-values">
+            <span>{{ filters.minPrice }} &euro;</span>
+            <span>{{ filters.maxPrice }} &euro;</span>
+          </div>
+          <div class="range-inputs">
+            <input type="range" min="200" max="2000" step="50" [(ngModel)]="filters.minPrice" name="minPrice" (ngModelChange)="onFilterChange()" />
+            <input type="range" min="200" max="2000" step="50" [(ngModel)]="filters.maxPrice" name="maxPrice" (ngModelChange)="onFilterChange()" />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Property Type -->
+    <div class="filter-section">
+      <h3>Type de bien</h3>
+      <div class="type-chips">
+        <button class="chip" [class.active]="filters.type === ''" (click)="filters.type = ''; onFilterChange()">Tous</button>
+        <button class="chip" [class.active]="filters.type === 'Appartement'" (click)="filters.type = 'Appartement'; onFilterChange()">Appartement</button>
+        <button class="chip" [class.active]="filters.type === 'Studio'" (click)="filters.type = 'Studio'; onFilterChange()">Studio</button>
+        <button class="chip" [class.active]="filters.type === 'Maison'" (click)="filters.type = 'Maison'; onFilterChange()">Maison</button>
+        <button class="chip" [class.active]="filters.type === 'Loft'" (click)="filters.type = 'Loft'; onFilterChange()">Loft</button>
+      </div>
+    </div>
+
+    <!-- Rooms -->
+    <div class="filter-section">
+      <h3>Pieces</h3>
+      <div class="room-selects">
+        <div class="room-select">
+          <label>Chambres</label>
+          <div class="select-wrapper">
+            <select [(ngModel)]="filters.bedrooms" name="bedrooms" (ngModelChange)="onFilterChange()">
+              <option value="">Toutes</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3+</option>
+            </select>
+          </div>
+        </div>
+        <div class="room-select">
+          <label>SdB</label>
+          <div class="select-wrapper">
+            <select [(ngModel)]="filters.bathrooms" name="bathrooms" (ngModelChange)="onFilterChange()">
+              <option value="">Toutes</option>
+              <option value="1">1</option>
+              <option value="2">2+</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="results-header">
+      <p class="results-count">Resultats : <strong>{{ results().length }}</strong> annonces</p>
+    </div>
+
+    @if (loading()) {
+      <div class="empty-state">
+        <p>Chargement...</p>
+      </div>
+    } @else if (results().length > 0) {
+      <div class="cards-grid">
+        @for (apt of results(); track apt.id) {
+          <div class="apt-card" [class.contacted]="apt.status === 'contacte'" [class.visited]="apt.status === 'visite'">
+            <div class="card-image">
+              @if (apt.image) {
+                <img [src]="apt.image" [alt]="apt.title" loading="lazy" />
+              } @else {
+                <div class="no-image">&#127968;</div>
+              }
+              @if (apt.status !== 'nouveau') {
+                <span class="status-badge" [class]="apt.status">{{ apt.status }}</span>
+              }
+            </div>
+            <div class="card-body">
+              <h3>{{ apt.title }}</h3>
+              <p class="card-address">&#128205; {{ apt.address || apt.city }}</p>
+              <div class="card-features">
+                @if (apt.rooms) { <span>&#127970; {{ apt.rooms }} Pieces</span> }
+                @if (apt.bedrooms) { <span>&#128716; {{ apt.bedrooms }} Ch.</span> }
+                @if (apt.bathrooms) { <span>&#128707; {{ apt.bathrooms }} SdB</span> }
+                @if (apt.surface) { <span>&#128208; {{ apt.surface }} m&sup2;</span> }
+              </div>
+              <div class="card-footer">
+                <p class="card-price">{{ apt.price }} &euro;<span>/mois</span></p>
+                <span class="source-badge">{{ apt.source }}</span>
+              </div>
+              <div class="card-actions">
+                <button class="action-btn view" (click)="openUrl(apt.url)">Voir l'annonce</button>
+                @if (apt.status === 'nouveau') {
+                  <button class="action-btn contact" (click)="updateStatus(apt, 'contacte')">Contacte</button>
+                }
+                @if (apt.status === 'contacte') {
+                  <button class="action-btn visit" (click)="updateStatus(apt, 'visite')">Visite</button>
+                }
+                <button class="action-btn delete" (click)="updateStatus(apt, 'supprime')">&#10005;</button>
+              </div>
             </div>
           </div>
         }
       </div>
     } @else {
       <div class="empty-state">
-        <h3>Aucun resultat</h3>
-        <p>Essayez de modifier vos criteres de recherche.</p>
+        <h3>Aucune annonce</h3>
+        <p>Utilisez le scraper pour importer des annonces depuis LeBonCoin.</p>
       </div>
     }
-  }
+  </main>
 </div>

@@ -8,7 +8,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #f0f2f5;
+  background: #f7f8fa;
   color: #333;
   min-height: 100vh;
 }
@@ -64,7 +64,7 @@ body {
 
       &:focus {
         outline: none;
-        border-color: #e94560;
+        border-color: #10b981;
       }
     }
   }
@@ -86,11 +86,11 @@ body {
   transition: all 0.2s;
 
   &-primary {
-    background: #e94560;
+    background: #10b981;
     color: #fff;
 
     &:hover {
-      background: #d63851;
+      background: #059669;
     }
   }
 

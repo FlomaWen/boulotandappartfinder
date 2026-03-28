@@ -1,23 +1,15 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ApartmentService, Apartment } from '../../../../backend/src/services/apartment.service';
 
-interface ApartmentFilters {
+interface Filters {
   city: string;
-  minPrice: number | null;
-  maxPrice: number | null;
-  minSurface: number | null;
-  rooms: number | null;
+  priceRange: string;
+  minPrice: number;
+  maxPrice: number;
   type: string;
-}
-
-interface Apartment {
-  title: string;
-  city: string;
-  price: number;
-  surface: number;
-  rooms: number;
-  type: string;
-  description: string;
+  bedrooms: string;
+  bathrooms: string;
 }
 
 @Component({
@@ -26,94 +18,108 @@ interface Apartment {
   templateUrl: './apartment-search.html',
   styleUrl: './apartment-search.scss',
 })
-export class ApartmentSearch {
-  filters: ApartmentFilters = {
+export class ApartmentSearch implements OnInit {
+  filters: Filters = {
     city: '',
-    minPrice: null,
-    maxPrice: null,
-    minSurface: null,
-    rooms: null,
+    priceRange: 'custom',
+    minPrice: 300,
+    maxPrice: 2000,
     type: '',
+    bedrooms: '',
+    bathrooms: '',
   };
 
   readonly results = signal<Apartment[]>([]);
-  readonly hasSearched = signal(false);
+  readonly totalCount = signal(0);
+  readonly loading = signal(false);
+  readonly scraping = signal(false);
 
-  // Mock data for now — will be replaced by API calls later
-  private readonly mockData: Apartment[] = [
-    {
-      title: 'Studio lumineux centre-ville',
-      city: 'Paris',
-      price: 850,
-      surface: 25,
-      rooms: 1,
-      type: 'Studio',
-      description: 'Beau studio renove proche metro, ideal pour une personne.',
-    },
-    {
-      title: 'T2 avec balcon',
-      city: 'Lyon',
-      price: 720,
-      surface: 45,
-      rooms: 2,
-      type: 'T2',
-      description: 'Appartement T2 avec balcon et vue degagee, quartier calme.',
-    },
-    {
-      title: 'T3 familial proche ecoles',
-      city: 'Bordeaux',
-      price: 950,
-      surface: 70,
-      rooms: 3,
-      type: 'T3',
-      description: 'Grand T3 ideal pour famille, a proximite des ecoles et commerces.',
-    },
-    {
-      title: 'T2 moderne quartier gare',
-      city: 'Paris',
-      price: 1100,
-      surface: 40,
-      rooms: 2,
-      type: 'T2',
-      description: 'Appartement recent avec cuisine equipee, 5 min de la gare.',
-    },
-    {
-      title: 'Studio meuble etudiant',
-      city: 'Toulouse',
-      price: 480,
-      surface: 20,
-      rooms: 1,
-      type: 'Studio',
-      description: 'Studio entierement meuble, parfait pour etudiant ou jeune actif.',
-    },
-    {
-      title: 'T4 avec jardin',
-      city: 'Nantes',
-      price: 1200,
-      surface: 90,
-      rooms: 4,
-      type: 'T4',
-      description: 'Spacieux T4 avec jardin privatif, ideal pour famille.',
-    },
-  ];
+  scrapeCity = '';
+  scrapeMaxPrice: number | null = null;
 
-  search(): void {
-    this.hasSearched.set(true);
-    const filtered = this.mockData.filter((apt) => {
-      if (this.filters.city && !apt.city.toLowerCase().includes(this.filters.city.toLowerCase())) return false;
-      if (this.filters.minPrice && apt.price < this.filters.minPrice) return false;
-      if (this.filters.maxPrice && apt.price > this.filters.maxPrice) return false;
-      if (this.filters.minSurface && apt.surface < this.filters.minSurface) return false;
-      if (this.filters.rooms && apt.rooms !== this.filters.rooms) return false;
-      if (this.filters.type && apt.type !== this.filters.type) return false;
-      return true;
+  constructor(private apartmentService: ApartmentService) {}
+
+  ngOnInit(): void {
+    this.loadApartments();
+  }
+
+  loadApartments(): void {
+    this.loading.set(true);
+    const filters: Record<string, string | number> = {};
+    if (this.filters.city) filters['city'] = this.filters.city;
+    if (this.filters.minPrice) filters['minPrice'] = this.filters.minPrice;
+    if (this.filters.maxPrice) filters['maxPrice'] = this.filters.maxPrice;
+    if (this.filters.type) filters['type'] = this.filters.type;
+    if (this.filters.bedrooms) filters['bedrooms'] = +this.filters.bedrooms;
+    if (this.filters.bathrooms) filters['bathrooms'] = +this.filters.bathrooms;
+
+    this.apartmentService.getAll(filters).subscribe({
+      next: (data) => {
+        this.results.set(data);
+        this.totalCount.set(data.length);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
-    this.results.set(filtered);
+  }
+
+  onPriceRangeChange(): void {
+    if (this.filters.priceRange === '500-1000') {
+      this.filters.minPrice = 500;
+      this.filters.maxPrice = 1000;
+    } else if (this.filters.priceRange === '1000+') {
+      this.filters.minPrice = 1000;
+      this.filters.maxPrice = 2000;
+    }
+    this.loadApartments();
+  }
+
+  onFilterChange(): void {
+    this.loadApartments();
+  }
+
+  updateStatus(apt: Apartment, status: string): void {
+    this.apartmentService.updateStatus(apt.id, status).subscribe(() => {
+      if (status === 'supprime') {
+        this.results.update((list) => list.filter((a) => a.id !== apt.id));
+      } else {
+        this.results.update((list) =>
+          list.map((a) => (a.id === apt.id ? { ...a, status: status as Apartment['status'] } : a))
+        );
+      }
+    });
+  }
+
+  openUrl(url: string): void {
+    window.open(url, '_blank');
+  }
+
+  scrapeApartments(): void {
+    if (!this.scrapeCity) return;
+    this.scraping.set(true);
+    this.apartmentService.scrape(this.scrapeCity, this.scrapeMaxPrice || undefined).subscribe({
+      next: (res) => {
+        this.scraping.set(false);
+        this.loadApartments();
+        alert(`${res.count} nouvelles annonces importees !`);
+      },
+      error: (err) => {
+        this.scraping.set(false);
+        alert('Erreur de scraping: ' + (err.error?.details || err.message));
+      },
+    });
   }
 
   reset(): void {
-    this.filters = { city: '', minPrice: null, maxPrice: null, minSurface: null, rooms: null, type: '' };
-    this.results.set([]);
-    this.hasSearched.set(false);
+    this.filters = {
+      city: '',
+      priceRange: 'custom',
+      minPrice: 300,
+      maxPrice: 2000,
+      type: '',
+      bedrooms: '',
+      bathrooms: '',
+    };
+    this.loadApartments();
   }
 }

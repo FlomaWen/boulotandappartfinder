@@ -140,7 +140,8 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   console.log(`[LeBonCoin] Scraping: ${searchUrl}`);
 
   // Use non-headless so VNC can show the browser if captcha appears
-  const browser = await createStealthBrowser({ headless: false, useProxy: true });
+  // No proxy for LeBonCoin — residential proxies get flagged by DataDome
+  const browser = await createStealthBrowser({ headless: false, useProxy: false });
   let insertedCount = 0;
   let vnc: ChildProcess | null = null;
 

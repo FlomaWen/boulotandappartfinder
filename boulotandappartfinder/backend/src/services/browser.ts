@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import type { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
+import type {Browser, Page, PuppeteerLaunchOptions} from 'puppeteer';
+import proxyChain from 'proxy-chain';
 import path from 'path';
 
 // Apply stealth plugin
@@ -31,66 +32,25 @@ export async function createStealthBrowser(config: BrowserConfig = {}): Promise<
     '--disable-gpu',
   ];
 
-  // Add proxy if configured
+  // Use proxy-chain to anonymize the proxy (handles auth transparently)
   if (proxyUrl) {
-    const url = new URL(proxyUrl);
-    const proxyServer = `${url.protocol}//${url.hostname}:${url.port}`;
-    args.push(`--proxy-server=${proxyServer}`);
-    console.log(`[Browser] Using proxy: ${url.hostname}:${url.port}`);
+    const anonymizedUrl = await proxyChain.anonymizeProxy(proxyUrl);
+    args.push(`--proxy-server=${anonymizedUrl}`);
+    console.log(`[Browser] Using proxy via proxy-chain: ${new URL(proxyUrl).hostname}`);
   }
 
   const launchOptions: PuppeteerLaunchOptions = {
-    headless: headless ? true : false,
+    headless: headless,
     userDataDir: CHROME_PROFILE_DIR,
     args,
     defaultViewport: { width: 1920, height: 1080 },
   };
 
-  const browser = await puppeteer.launch(launchOptions);
-  return browser;
+  return await puppeteer.launch(launchOptions);
 }
 
 export async function setupPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
-  const proxyUrl = getProxyUrl();
-
-  // Set up proxy authentication via CDP (works with all Chromium builds)
-  if (proxyUrl) {
-    const url = new URL(proxyUrl);
-    if (url.username && url.password) {
-      const username = decodeURIComponent(url.username);
-      const password = decodeURIComponent(url.password);
-      const cdp = await page.createCDPSession();
-      await cdp.send('Fetch.enable', {
-        handleAuthRequests: true,
-        patterns: [{ requestStage: 'Request' }],
-      });
-      cdp.on('Fetch.requestPaused', async (event: any) => {
-        if (event.responseStatusCode === 407) {
-          await cdp.send('Fetch.continueWithAuth', {
-            requestId: event.requestId,
-            authChallengeResponse: {
-              response: 'ProvideCredentials',
-              username,
-              password,
-            },
-          });
-        } else {
-          await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
-        }
-      });
-      cdp.on('Fetch.authRequired', async (event: any) => {
-        await cdp.send('Fetch.continueWithAuth', {
-          requestId: event.requestId,
-          authChallengeResponse: {
-            response: 'ProvideCredentials',
-            username,
-            password,
-          },
-        });
-      });
-    }
-  }
 
   // Set realistic user agent
   await page.setUserAgent(

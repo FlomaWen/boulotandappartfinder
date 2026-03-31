@@ -1,8 +1,7 @@
-import puppeteer from 'puppeteer';
+import { createStealthBrowser, setupPage, randomDelay } from '../services/browser';
 import { getDb } from '../database/schema';
-import path from 'path';
+import type { Browser } from 'puppeteer';
 
-const CHROME_PROFILE_DIR = path.resolve(__dirname, '../../data/chrome-profile');
 const COMPANY_COLORS = ['#4f46e5', '#0891b2', '#059669', '#dc2626', '#7c3aed', '#b45309', '#e11d48', '#0d9488'];
 
 export async function scrapeWelcometothejungle(keyword: string, city: string): Promise<number> {
@@ -14,25 +13,18 @@ export async function scrapeWelcometothejungle(keyword: string, city: string): P
   console.log(`[WTTJ] Scraping: ${url}`);
 
   let insertedCount = 0;
-  let browser;
+  let browser: Browser | null = null;
 
   try {
-    browser = await puppeteer.launch({
-      headless: false,
-      args: [
-        `--user-data-dir=${CHROME_PROFILE_DIR}`,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled',
-      ],
-      defaultViewport: { width: 1400, height: 900 },
+    // Launch with stealth plugin and optional proxy
+    const isProduction = process.env.NODE_ENV === 'production';
+    browser = await createStealthBrowser({
+      headless: isProduction,
+      useProxy: true,
     });
 
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
+    const page = await setupPage(browser);
+    await randomDelay(2000, 5000);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
     // Accept cookies if present

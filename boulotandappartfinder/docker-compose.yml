@@ -1,0 +1,41 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: boulotappart-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: boulotappart-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PROXY_URL=${PROXY_URL}
+      - SCRAPE_CRON=${SCRAPE_CRON:-0 */5 * * *}
+      - DEFAULT_APARTMENT_CITY=${DEFAULT_APARTMENT_CITY:-Bordeaux}
+      - DEFAULT_APARTMENT_MAX_PRICE=${DEFAULT_APARTMENT_MAX_PRICE:-1200}
+      - DEFAULT_JOB_KEYWORD=${DEFAULT_JOB_KEYWORD:-developpeur}
+      - DEFAULT_JOB_CITY=${DEFAULT_JOB_CITY:-Bordeaux}
+      - FRONTEND_URL=http://frontend
+    volumes:
+      - backend-data:/app/data
+    expose:
+      - "3000"
+    restart: unless-stopped
+    # Chromium requires these security options
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_ADMIN
+
+volumes:
+  backend-data:
+    driver: local

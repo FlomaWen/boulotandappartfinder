@@ -3,17 +3,20 @@ import cors from 'cors';
 import apartmentsRouter from './routes/apartments';
 import jobsRouter from './routes/jobs';
 import scrapeRouter from './routes/scrape';
+import schedulerRouter from './routes/scheduler';
 
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:4200' }));
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200').split(',');
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // Routes
 app.use('/api/apartments', apartmentsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/scrape', scrapeRouter);
+app.use('/api/scheduler', schedulerRouter);
 
 // Health check
 app.get('/api/health', (_req: express.Request, res: express.Response) => {

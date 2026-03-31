@@ -1,9 +1,7 @@
-import puppeteer from 'puppeteer';
+import { createStealthBrowser, setupPage, randomDelay } from '../services/browser';
 import { getDb } from '../database/schema';
 import fs from 'fs';
 import path from 'path';
-
-const CHROME_PROFILE_DIR = path.resolve(__dirname, '../../data/chrome-profile');
 
 const CITY_POSTCODES: Record<string, { name: string; code: string }> = {
   paris: { name: 'Paris', code: '75000' },
@@ -112,23 +110,18 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
   console.log(`[LeBonCoin] Scraping: ${url}`);
 
-  // Launch visible Chrome with persistent profile (cookies survive between runs)
-  const browser = await puppeteer.launch({
-    headless: false,
-    userDataDir: CHROME_PROFILE_DIR,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--window-size=1920,1080',
-    ],
-    defaultViewport: { width: 1920, height: 1080 },
+  // Launch with stealth plugin and optional proxy
+  const isProduction = process.env.NODE_ENV === 'production';
+  const browser = await createStealthBrowser({
+    headless: isProduction,
+    useProxy: true,
   });
 
   let insertedCount = 0;
 
   try {
-    const page = await browser.newPage();
+    const page = await setupPage(browser);
+    await randomDelay(2000, 5000);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
     // Check if we hit a captcha page
@@ -268,7 +261,7 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
       await nextBtn.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-      await new Promise(r => setTimeout(r, 2000));
+      await randomDelay(3000, 7000);
       pageNum++;
     }
 

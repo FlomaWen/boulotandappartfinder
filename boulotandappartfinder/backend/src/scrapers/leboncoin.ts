@@ -169,7 +169,12 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     const response = await fetch(LBC_API_URL, fetchOptions);
 
     if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
       console.log(`[LeBonCoin API] Error ${response.status}: ${response.statusText}`);
+      const headers: Record<string, string> = {};
+      response.headers.forEach((v, k) => { headers[k] = v; });
+      console.log(`[LeBonCoin API] Response headers:`, JSON.stringify(headers));
+      console.log(`[LeBonCoin API] Response body (first 500 chars):`, errorBody.slice(0, 500));
       break;
     }
 

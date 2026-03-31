@@ -280,10 +280,14 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
       break;
     }
 
-    const data = await response.json();
-    const ads = data.ads || [];
+    const rawText = await response.text();
+    console.log(`[LeBonCoin API] Response status: ${response.status}`);
+    console.log(`[LeBonCoin API] Response body (first 500 chars):`, rawText.slice(0, 500));
 
-    console.log(`[LeBonCoin API] Page ${pageNum}: ${ads.length} ads`);
+    const data = JSON.parse(rawText);
+    const ads = data.ads || [];
+    console.log(`[LeBonCoin API] Page ${pageNum}: ${ads.length} ads (total: ${data.total || 0}, keys: ${Object.keys(data).join(',')})`);
+
 
     if (ads.length === 0) break;
 

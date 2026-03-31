@@ -122,7 +122,26 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   try {
     const page = await setupPage(browser);
     await randomDelay(2000, 5000);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    } catch (navError: any) {
+      // Dump whatever HTML we got for debugging
+      const debugHtml = await page.content().catch(() => 'EMPTY');
+      const debugDir = path.join(__dirname, '../../data');
+      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+      fs.writeFileSync(path.join(debugDir, 'leboncoin_nav_error.html'), debugHtml, 'utf-8');
+      console.log(`[LeBonCoin] Navigation failed: ${navError.message}`);
+      console.log(`[LeBonCoin] Page title: ${await page.title().catch(() => 'N/A')}`);
+      console.log(`[LeBonCoin] Page URL: ${page.url()}`);
+      console.log(`[LeBonCoin] HTML length: ${debugHtml.length}`);
+
+      // If it's just a timeout, continue — we might still have content
+      if (!navError.message.includes('timeout') && !navError.message.includes('Timeout')) {
+        throw navError;
+      }
+      console.log('[LeBonCoin] Timeout but continuing with whatever loaded...');
+    }
 
     // Check if we hit a captcha page
     const isCaptcha = await page.evaluate(() => {

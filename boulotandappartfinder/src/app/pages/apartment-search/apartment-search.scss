@@ -178,6 +178,67 @@
   font-size: 0.85rem;
 }
 
+.recent-searches {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px dashed #d1d5db;
+}
+
+.recent-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(16, 185, 129, 0.08); }
+}
+
+.recent-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recent-keyword {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-details {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.recent-remove {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #ccc;
+  cursor: pointer;
+  padding: 0 0.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+
+  &:hover { color: #dc2626; }
+}
+
 .select-wrapper {
   position: relative;
   select {

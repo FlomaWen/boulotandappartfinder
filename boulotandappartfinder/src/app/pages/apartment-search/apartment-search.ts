@@ -20,6 +20,26 @@ interface PropertyTypes {
   autre: boolean;
 }
 
+interface RecentApartmentSearch {
+  city: string;
+  minPrice: number | null;
+  maxPrice: number | null;
+  propertyTypes: PropertyTypes;
+  minRooms: number | null;
+  maxRooms: number | null;
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
+  minSurface: number | null;
+  maxSurface: number | null;
+  minLandSurface: number | null;
+  maxLandSurface: number | null;
+  furnished: string;
+  date: string;
+}
+
+const RECENT_APT_SEARCHES_KEY = 'recentApartmentSearches';
+const MAX_RECENT_SEARCHES = 5;
+
 @Component({
   selector: 'app-apartment-search',
   imports: [FormsModule],
@@ -64,9 +84,12 @@ export class ApartmentSearch implements OnInit {
 
   roomOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
+  recentSearches: RecentApartmentSearch[] = [];
+
   constructor(private apartmentService: ApartmentService) {}
 
   ngOnInit(): void {
+    this.loadRecentSearches();
     this.loadApartments();
   }
 
@@ -166,6 +189,7 @@ export class ApartmentSearch implements OnInit {
     this.apartmentService.scrape(scrapeFilters).subscribe({
       next: (res) => {
         this.scraping.set(false);
+        this.saveRecentSearch();
         this.loadApartments();
         alert(`${res.count} nouvelles annonces importees !`);
       },
@@ -174,6 +198,70 @@ export class ApartmentSearch implements OnInit {
         alert('Erreur de scraping: ' + (err.error?.details || err.message));
       },
     });
+  }
+
+  loadRecentSearches(): void {
+    try {
+      const stored = localStorage.getItem(RECENT_APT_SEARCHES_KEY);
+      this.recentSearches = stored ? JSON.parse(stored) : [];
+    } catch {
+      this.recentSearches = [];
+    }
+  }
+
+  saveRecentSearch(): void {
+    const search: RecentApartmentSearch = {
+      city: this.scrapeCity,
+      minPrice: this.scrapeMinPrice,
+      maxPrice: this.scrapeMaxPrice,
+      propertyTypes: { ...this.scrapePropertyTypes },
+      minRooms: this.scrapeMinRooms,
+      maxRooms: this.scrapeMaxRooms,
+      minBedrooms: this.scrapeMinBedrooms,
+      maxBedrooms: this.scrapeMaxBedrooms,
+      minSurface: this.scrapeMinSurface,
+      maxSurface: this.scrapeMaxSurface,
+      minLandSurface: this.scrapeMinLandSurface,
+      maxLandSurface: this.scrapeMaxLandSurface,
+      furnished: this.scrapeFurnished,
+      date: new Date().toISOString(),
+    };
+    // Remove duplicate by city (same city = same search intent)
+    this.recentSearches = this.recentSearches.filter(
+      (s) => s.city.toLowerCase() !== this.scrapeCity.toLowerCase()
+    );
+    this.recentSearches.unshift(search);
+    this.recentSearches = this.recentSearches.slice(0, MAX_RECENT_SEARCHES);
+    localStorage.setItem(RECENT_APT_SEARCHES_KEY, JSON.stringify(this.recentSearches));
+  }
+
+  applyRecentSearch(search: RecentApartmentSearch): void {
+    this.scrapeCity = search.city;
+    this.scrapeMinPrice = search.minPrice;
+    this.scrapeMaxPrice = search.maxPrice;
+    this.scrapePropertyTypes = { ...search.propertyTypes };
+    this.scrapeMinRooms = search.minRooms;
+    this.scrapeMaxRooms = search.maxRooms;
+    this.scrapeMinBedrooms = search.minBedrooms;
+    this.scrapeMaxBedrooms = search.maxBedrooms;
+    this.scrapeMinSurface = search.minSurface;
+    this.scrapeMaxSurface = search.maxSurface;
+    this.scrapeMinLandSurface = search.minLandSurface;
+    this.scrapeMaxLandSurface = search.maxLandSurface;
+    this.scrapeFurnished = search.furnished;
+  }
+
+  removeRecentSearch(index: number, event: Event): void {
+    event.stopPropagation();
+    this.recentSearches.splice(index, 1);
+    localStorage.setItem(RECENT_APT_SEARCHES_KEY, JSON.stringify(this.recentSearches));
+  }
+
+  getSelectedTypes(types: PropertyTypes): string {
+    return Object.entries(types)
+      .filter(([_, v]) => v)
+      .map(([k]) => k)
+      .join(', ') || 'tous';
   }
 
   reset(): void {

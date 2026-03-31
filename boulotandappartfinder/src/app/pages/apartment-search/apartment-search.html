@@ -120,6 +120,28 @@
           {{ scraping() ? 'Scraping en cours...' : 'Scraper LeBonCoin et SeLoger' }}
         </button>
       </div>
+
+      @if (recentSearches.length > 0) {
+        <div class="recent-searches">
+          <p class="recent-title">Recherches recentes</p>
+          @for (search of recentSearches; track search.date) {
+            <div class="recent-item" (click)="applyRecentSearch(search)">
+              <div class="recent-info">
+                <span class="recent-keyword">{{ search.city }}</span>
+                <span class="recent-details">{{ getSelectedTypes(search.propertyTypes) }}
+                  @if (search.minPrice || search.maxPrice) {
+                    &middot; {{ search.minPrice || '?' }}-{{ search.maxPrice || '?' }}&euro;
+                  }
+                  @if (search.minRooms || search.maxRooms) {
+                    &middot; {{ search.minRooms || '?' }}-{{ search.maxRooms || '?' }}p
+                  }
+                </span>
+              </div>
+              <button class="recent-remove" (click)="removeRecentSearch($index, $event)">&times;</button>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <!-- Display Filters -->

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { scrapeLeboncoin } from '../scrapers/leboncoin';
 import { scrapeSeloger } from '../scrapers/seloger';
 import { scrapeHellowork } from '../scrapers/hellowork';
+import { scrapeMeteojob } from '../scrapers/meteojob';
+import { scrapeWelcometothejungle } from '../scrapers/welcometothejungle';
 
 const router = Router();
 
@@ -50,8 +52,26 @@ router.post('/jobs', async (req: Request, res: Response) => {
   }
 
   try {
-    const count = await scrapeHellowork(keyword, city);
-    res.json({ message: `${count} offres scrapees depuis HelloWork`, count });
+    // HelloWork: static HTML scraping (fast)
+    console.log('[Scrape] Starting HelloWork...');
+    const hwCount = await scrapeHellowork(keyword, city);
+    console.log(`[Scrape] HelloWork done: ${hwCount} new listings`);
+
+    // Meteojob: static HTML scraping (fast)
+    console.log('[Scrape] Starting Meteojob...');
+    const mjCount = await scrapeMeteojob(keyword, city);
+    console.log(`[Scrape] Meteojob done: ${mjCount} new listings`);
+
+    // WTTJ: Puppeteer (slower, opens browser)
+    console.log('[Scrape] Starting Welcome to the Jungle...');
+    const wttjCount = await scrapeWelcometothejungle(keyword, city);
+    console.log(`[Scrape] WTTJ done: ${wttjCount} new listings`);
+
+    const total = hwCount + mjCount + wttjCount;
+    res.json({
+      message: `${total} offres scrapees (HelloWork: ${hwCount}, Meteojob: ${mjCount}, WTTJ: ${wttjCount})`,
+      count: total,
+    });
   } catch (err) {
     console.error('Scrape jobs error:', err);
     res.status(500).json({ error: 'Scraping failed', details: String(err) });

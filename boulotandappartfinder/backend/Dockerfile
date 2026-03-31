@@ -22,6 +22,7 @@ FROM node:20-slim
 RUN apt-get update && apt-get install -y \
     chromium \
     xvfb \
+    x11vnc \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
     fonts-thai-tlwg \
@@ -50,7 +51,7 @@ COPY --from=builder /app/dist ./dist
 # Create data directory
 RUN mkdir -p /app/data
 
-EXPOSE 3000
+EXPOSE 3000 5900
 
 # Create entrypoint script that starts Xvfb then Node
 RUN echo '#!/bin/bash\nXvfb :99 -screen 0 1920x1080x24 -nolisten tcp &\nsleep 1\nexec node dist/server.js' > /app/entrypoint.sh \

@@ -1,6 +1,7 @@
 import { getDb } from '../database/schema';
 import { ProxyAgent } from 'undici';
 import { createStealthBrowser, setupPage } from '../services/browser';
+import { execSync, spawn, ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,22 +34,48 @@ function loadDatadomeCookie(): string | null {
   }
 }
 
+function startVnc(): ChildProcess | null {
+  try {
+    // Kill any existing x11vnc
+    try { execSync('pkill x11vnc', { stdio: 'ignore' }); } catch {}
+    const vnc = spawn('x11vnc', ['-display', ':99', '-nopw', '-forever', '-shared'], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    vnc.unref();
+    console.log('[LeBonCoin] x11vnc started on port 5900');
+    return vnc;
+  } catch (e) {
+    console.log('[LeBonCoin] Failed to start x11vnc:', e);
+    return null;
+  }
+}
+
+function stopVnc(vnc: ChildProcess | null) {
+  if (vnc) {
+    try { process.kill(-vnc.pid!); } catch {}
+  }
+  try { execSync('pkill x11vnc', { stdio: 'ignore' }); } catch {}
+  console.log('[LeBonCoin] x11vnc stopped');
+}
+
 /**
- * Opens a browser on leboncoin.fr so the user can solve the captcha manually.
+ * Opens a browser on leboncoin.fr so the user can solve the captcha manually via VNC.
  * Once solved, saves all cookies to a file for reuse by the API scraper.
  */
 export async function solveLeboncoinCaptcha(): Promise<void> {
   console.log('[LeBonCoin] Opening browser for manual captcha solving...');
+  console.log('[LeBonCoin] Connect via VNC on port 5900 to see the browser.');
+
+  const vnc = startVnc();
   const browser = await createStealthBrowser({ headless: false });
   const page = await setupPage(browser);
 
   await page.goto('https://www.leboncoin.fr', { waitUntil: 'networkidle2', timeout: 60000 });
 
-  console.log('[LeBonCoin] Browser opened. Solve the captcha if present, then browse around.');
-  console.log('[LeBonCoin] Waiting up to 5 minutes for captcha resolution...');
+  console.log('[LeBonCoin] Browser opened on leboncoin.fr. Solve the captcha via VNC.');
+  console.log('[LeBonCoin] Waiting up to 5 minutes...');
 
-  // Wait until datadome cookie appears with a valid value (captcha solved)
-  // or the user navigates successfully
   const maxWait = 5 * 60 * 1000;
   const start = Date.now();
   let solved = false;
@@ -56,7 +83,6 @@ export async function solveLeboncoinCaptcha(): Promise<void> {
   while (Date.now() - start < maxWait) {
     const cookies = await page.cookies();
     const dd = cookies.find(c => c.name === 'datadome');
-    // Check if we're on a real page (not captcha redirect)
     const url = page.url();
     if (dd && !url.includes('captcha-delivery.com')) {
       solved = true;
@@ -69,12 +95,13 @@ export async function solveLeboncoinCaptcha(): Promise<void> {
     const cookies = await page.cookies();
     fs.mkdirSync(path.dirname(COOKIE_FILE), { recursive: true });
     fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookies, null, 2));
-    console.log(`[LeBonCoin] Cookies saved to ${COOKIE_FILE} (${cookies.length} cookies)`);
+    console.log(`[LeBonCoin] Cookies saved! (${cookies.length} cookies)`);
   } else {
     console.log('[LeBonCoin] Timeout - captcha not solved in time');
   }
 
   await browser.close();
+  stopVnc(vnc);
 }
 
 const CITY_POSTCODES: Record<string, { name: string; code: string; department_id: string; region_id: string }> = {

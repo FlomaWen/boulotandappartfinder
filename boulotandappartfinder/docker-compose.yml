@@ -27,8 +27,9 @@ services:
       - FRONTEND_URL=http://frontend
     volumes:
       - backend-data:/app/data
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
+      - "5900:5900"
     restart: unless-stopped
     # Chromium requires these security options
     security_opt:

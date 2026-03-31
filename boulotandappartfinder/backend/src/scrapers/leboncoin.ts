@@ -1,7 +1,14 @@
 import { getDb } from '../database/schema';
+import { ProxyAgent } from 'undici';
 
 const LBC_API_URL = 'https://api.leboncoin.fr/finder/search';
 const LBC_API_KEY = 'ba0c2dad52b3ec';
+
+function getProxyDispatcher(): ProxyAgent | undefined {
+  const proxyUrl = process.env.PROXY_URL;
+  if (!proxyUrl) return undefined;
+  return new ProxyAgent(proxyUrl);
+}
 
 const CITY_POSTCODES: Record<string, { name: string; code: string; department_id: string; region_id: string }> = {
   paris: { name: 'Paris', code: '75000', department_id: '75', region_id: '12' },
@@ -141,7 +148,8 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
     console.log(`[LeBonCoin API] Page ${pageNum} (offset ${offset})...`);
 
-    const response = await fetch(LBC_API_URL, {
+    const dispatcher = getProxyDispatcher();
+    const fetchOptions: any = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -152,7 +160,13 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
         'Accept': '*/*',
         'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       },
-    });
+      body: JSON.stringify(payload),
+    };
+    if (dispatcher) {
+      fetchOptions.dispatcher = dispatcher;
+      console.log(`[LeBonCoin API] Using proxy: ${process.env.PROXY_URL?.replace(/:[^:@]+@/, ':***@')}`);
+    }
+    const response = await fetch(LBC_API_URL, fetchOptions);
 
     if (!response.ok) {
       console.log(`[LeBonCoin API] Error ${response.status}: ${response.statusText}`);

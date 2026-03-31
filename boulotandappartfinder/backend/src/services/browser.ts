@@ -54,13 +54,40 @@ export async function setupPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
   const proxyUrl = getProxyUrl();
 
-  // Set up proxy authentication if needed
+  // Set up proxy authentication via CDP (works with all Chromium builds)
   if (proxyUrl) {
     const url = new URL(proxyUrl);
     if (url.username && url.password) {
-      await page.authenticate({
-        username: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
+      const username = decodeURIComponent(url.username);
+      const password = decodeURIComponent(url.password);
+      const cdp = await page.createCDPSession();
+      await cdp.send('Fetch.enable', {
+        handleAuthRequests: true,
+        patterns: [{ requestStage: 'Request' }],
+      });
+      cdp.on('Fetch.requestPaused', async (event: any) => {
+        if (event.responseStatusCode === 407) {
+          await cdp.send('Fetch.continueWithAuth', {
+            requestId: event.requestId,
+            authChallengeResponse: {
+              response: 'ProvideCredentials',
+              username,
+              password,
+            },
+          });
+        } else {
+          await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
+        }
+      });
+      cdp.on('Fetch.authRequired', async (event: any) => {
+        await cdp.send('Fetch.continueWithAuth', {
+          requestId: event.requestId,
+          authChallengeResponse: {
+            response: 'ProvideCredentials',
+            username,
+            password,
+          },
+        });
       });
     }
   }

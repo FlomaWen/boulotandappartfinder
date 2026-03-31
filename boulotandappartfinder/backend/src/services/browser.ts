@@ -40,7 +40,7 @@ export async function createStealthBrowser(config: BrowserConfig = {}): Promise<
   }
 
   const launchOptions: PuppeteerLaunchOptions = {
-    headless: headless ? 'shell' : false,
+    headless: headless ? true : false,
     userDataDir: CHROME_PROFILE_DIR,
     args,
     defaultViewport: { width: 1920, height: 1080 },

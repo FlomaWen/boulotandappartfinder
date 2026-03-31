@@ -6,144 +6,6 @@
       <button class="reset-btn" (click)="reset()">Reset</button>
     </div>
 
-    <!-- Scrape section -->
-    <div class="filter-section scrape-section">
-      <h3>Importer des annonces</h3>
-      <div class="scrape-form">
-        <input type="text" placeholder="Ville (ex: Bordeaux, Bordeaux 33300)" [(ngModel)]="scrapeCity" name="scrapeCity" />
-
-        <!-- Type de bien -->
-        <label class="scrape-label">Type de bien</label>
-        <div class="type-checkboxes">
-          <label class="checkbox-option">
-            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.appartement" name="typeAppart" />
-            <span>Appartement</span>
-          </label>
-          <label class="checkbox-option">
-            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.maison" name="typeMaison" />
-            <span>Maison</span>
-          </label>
-          <label class="checkbox-option">
-            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.terrain" name="typeTerrain" />
-            <span>Terrain</span>
-          </label>
-          <label class="checkbox-option">
-            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.parking" name="typeParking" />
-            <span>Parking</span>
-          </label>
-          <label class="checkbox-option">
-            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.autre" name="typeAutre" />
-            <span>Autre</span>
-          </label>
-        </div>
-
-        <!-- Loyer -->
-        <label class="scrape-label">Loyer</label>
-        <div class="dual-input">
-          <div class="input-with-unit">
-            <input type="number" placeholder="Min" [(ngModel)]="scrapeMinPrice" name="scrapeMinPrice" />
-            <span class="unit">&euro;</span>
-          </div>
-          <div class="input-with-unit">
-            <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxPrice" name="scrapeMaxPrice" />
-            <span class="unit">&euro;</span>
-          </div>
-        </div>
-
-        <!-- Pièces -->
-        <label class="scrape-label">Pi&egrave;ces</label>
-        <p class="scrape-hint">S&eacute;lectionnez un minimum et un maximum</p>
-        <div class="number-chips">
-          @for (n of roomOptions; track n) {
-            <button class="num-chip"
-                    [class.active-min]="scrapeMinRooms === n"
-                    [class.active-max]="scrapeMaxRooms === n"
-                    [class.in-range]="isRoomInRange(scrapeMinRooms, scrapeMaxRooms, n)"
-                    (click)="toggleRoom(scrapeMinRooms === null ? 'scrapeMinRooms' : (scrapeMaxRooms === null && n >= scrapeMinRooms ? 'scrapeMaxRooms' : 'scrapeMinRooms'), n)">
-              {{ n === 8 ? '8+' : n }}
-            </button>
-          }
-        </div>
-
-        <!-- Chambres -->
-        <label class="scrape-label">Chambres</label>
-        <p class="scrape-hint">S&eacute;lectionnez un minimum et un maximum</p>
-        <div class="number-chips">
-          @for (n of roomOptions; track n) {
-            <button class="num-chip"
-                    [class.active-min]="scrapeMinBedrooms === n"
-                    [class.active-max]="scrapeMaxBedrooms === n"
-                    [class.in-range]="isRoomInRange(scrapeMinBedrooms, scrapeMaxBedrooms, n)"
-                    (click)="toggleRoom(scrapeMinBedrooms === null ? 'scrapeMinBedrooms' : (scrapeMaxBedrooms === null && n >= scrapeMinBedrooms ? 'scrapeMaxBedrooms' : 'scrapeMinBedrooms'), n)">
-              {{ n === 8 ? '8+' : n }}
-            </button>
-          }
-        </div>
-
-        <!-- Surface habitable -->
-        <label class="scrape-label">Surface habitable</label>
-        <div class="dual-input">
-          <div class="input-with-unit">
-            <input type="number" placeholder="Min" [(ngModel)]="scrapeMinSurface" name="scrapeMinSurface" />
-            <span class="unit">m&sup2;</span>
-          </div>
-          <div class="input-with-unit">
-            <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxSurface" name="scrapeMaxSurface" />
-            <span class="unit">m&sup2;</span>
-          </div>
-        </div>
-
-        <!-- Surface terrain -->
-        <label class="scrape-label">Surface du terrain</label>
-        <div class="dual-input">
-          <div class="input-with-unit">
-            <input type="number" placeholder="Min" [(ngModel)]="scrapeMinLandSurface" name="scrapeMinLandSurface" />
-            <span class="unit">m&sup2;</span>
-          </div>
-          <div class="input-with-unit">
-            <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxLandSurface" name="scrapeMaxLandSurface" />
-            <span class="unit">m&sup2;</span>
-          </div>
-        </div>
-
-        <!-- Meublé -->
-        <label class="scrape-label">Meubl&eacute; / Non meubl&eacute;</label>
-        <div class="select-wrapper">
-          <select [(ngModel)]="scrapeFurnished" name="scrapeFurnished">
-            <option value="">Tous</option>
-            <option value="meuble">Meubl&eacute;</option>
-            <option value="non_meuble">Non meubl&eacute;</option>
-          </select>
-        </div>
-
-        <button class="btn btn-primary btn-scrape" (click)="scrapeApartments()" [disabled]="scraping()">
-          {{ scraping() ? 'Scraping en cours...' : 'Scraper LeBonCoin et SeLoger' }}
-        </button>
-      </div>
-
-      @if (recentSearches.length > 0) {
-        <div class="recent-searches">
-          <p class="recent-title">Recherches recentes</p>
-          @for (search of recentSearches; track search.date) {
-            <div class="recent-item" (click)="applyRecentSearch(search)">
-              <div class="recent-info">
-                <span class="recent-keyword">{{ search.city }}</span>
-                <span class="recent-details">{{ getSelectedTypes(search.propertyTypes) }}
-                  @if (search.minPrice || search.maxPrice) {
-                    &middot; {{ search.minPrice || '?' }}-{{ search.maxPrice || '?' }}&euro;
-                  }
-                  @if (search.minRooms || search.maxRooms) {
-                    &middot; {{ search.minRooms || '?' }}-{{ search.maxRooms || '?' }}p
-                  }
-                </span>
-              </div>
-              <button class="recent-remove" (click)="removeRecentSearch($index, $event)">&times;</button>
-            </div>
-          }
-        </div>
-      }
-    </div>
-
     <!-- Display Filters -->
     <div class="filter-section">
       <h3>Localisation</h3>
@@ -289,4 +151,137 @@
       </div>
     }
   </main>
+
+  <!-- Scrape Panel -->
+  <aside class="scrape-panel">
+    <div class="scrape-panel-header">
+      <h2>Importer des annonces</h2>
+    </div>
+    <div class="scrape-form">
+      <input type="text" placeholder="Ville (ex: Bordeaux, Bordeaux 33300)" [(ngModel)]="scrapeCity" name="scrapeCity" />
+
+      <label class="scrape-label">Type de bien</label>
+      <div class="type-checkboxes">
+        <label class="checkbox-option">
+          <input type="checkbox" [(ngModel)]="scrapePropertyTypes.appartement" name="typeAppart" />
+          <span>Appartement</span>
+        </label>
+        <label class="checkbox-option">
+          <input type="checkbox" [(ngModel)]="scrapePropertyTypes.maison" name="typeMaison" />
+          <span>Maison</span>
+        </label>
+        <label class="checkbox-option">
+          <input type="checkbox" [(ngModel)]="scrapePropertyTypes.terrain" name="typeTerrain" />
+          <span>Terrain</span>
+        </label>
+        <label class="checkbox-option">
+          <input type="checkbox" [(ngModel)]="scrapePropertyTypes.parking" name="typeParking" />
+          <span>Parking</span>
+        </label>
+        <label class="checkbox-option">
+          <input type="checkbox" [(ngModel)]="scrapePropertyTypes.autre" name="typeAutre" />
+          <span>Autre</span>
+        </label>
+      </div>
+
+      <label class="scrape-label">Loyer</label>
+      <div class="dual-input">
+        <div class="input-with-unit">
+          <input type="number" placeholder="Min" [(ngModel)]="scrapeMinPrice" name="scrapeMinPrice" />
+          <span class="unit">&euro;</span>
+        </div>
+        <div class="input-with-unit">
+          <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxPrice" name="scrapeMaxPrice" />
+          <span class="unit">&euro;</span>
+        </div>
+      </div>
+
+      <label class="scrape-label">Pi&egrave;ces</label>
+      <p class="scrape-hint">S&eacute;lectionnez un minimum et un maximum</p>
+      <div class="number-chips">
+        @for (n of roomOptions; track n) {
+          <button class="num-chip"
+                  [class.active-min]="scrapeMinRooms === n"
+                  [class.active-max]="scrapeMaxRooms === n"
+                  [class.in-range]="isRoomInRange(scrapeMinRooms, scrapeMaxRooms, n)"
+                  (click)="toggleRoom(scrapeMinRooms === null ? 'scrapeMinRooms' : (scrapeMaxRooms === null && n >= scrapeMinRooms ? 'scrapeMaxRooms' : 'scrapeMinRooms'), n)">
+            {{ n === 8 ? '8+' : n }}
+          </button>
+        }
+      </div>
+
+      <label class="scrape-label">Chambres</label>
+      <p class="scrape-hint">S&eacute;lectionnez un minimum et un maximum</p>
+      <div class="number-chips">
+        @for (n of roomOptions; track n) {
+          <button class="num-chip"
+                  [class.active-min]="scrapeMinBedrooms === n"
+                  [class.active-max]="scrapeMaxBedrooms === n"
+                  [class.in-range]="isRoomInRange(scrapeMinBedrooms, scrapeMaxBedrooms, n)"
+                  (click)="toggleRoom(scrapeMinBedrooms === null ? 'scrapeMinBedrooms' : (scrapeMaxBedrooms === null && n >= scrapeMinBedrooms ? 'scrapeMaxBedrooms' : 'scrapeMinBedrooms'), n)">
+            {{ n === 8 ? '8+' : n }}
+          </button>
+        }
+      </div>
+
+      <label class="scrape-label">Surface habitable</label>
+      <div class="dual-input">
+        <div class="input-with-unit">
+          <input type="number" placeholder="Min" [(ngModel)]="scrapeMinSurface" name="scrapeMinSurface" />
+          <span class="unit">m&sup2;</span>
+        </div>
+        <div class="input-with-unit">
+          <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxSurface" name="scrapeMaxSurface" />
+          <span class="unit">m&sup2;</span>
+        </div>
+      </div>
+
+      <label class="scrape-label">Surface du terrain</label>
+      <div class="dual-input">
+        <div class="input-with-unit">
+          <input type="number" placeholder="Min" [(ngModel)]="scrapeMinLandSurface" name="scrapeMinLandSurface" />
+          <span class="unit">m&sup2;</span>
+        </div>
+        <div class="input-with-unit">
+          <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxLandSurface" name="scrapeMaxLandSurface" />
+          <span class="unit">m&sup2;</span>
+        </div>
+      </div>
+
+      <label class="scrape-label">Meubl&eacute; / Non meubl&eacute;</label>
+      <div class="select-wrapper">
+        <select [(ngModel)]="scrapeFurnished" name="scrapeFurnished">
+          <option value="">Tous</option>
+          <option value="meuble">Meubl&eacute;</option>
+          <option value="non_meuble">Non meubl&eacute;</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-scrape" (click)="scrapeApartments()" [disabled]="scraping()">
+        {{ scraping() ? 'Scraping en cours...' : 'Scraper LeBonCoin et SeLoger' }}
+      </button>
+    </div>
+
+    @if (recentSearches.length > 0) {
+      <div class="recent-searches">
+        <p class="recent-title">Recherches recentes</p>
+        @for (search of recentSearches; track search.date) {
+          <div class="recent-item" (click)="applyRecentSearch(search)">
+            <div class="recent-info">
+              <span class="recent-keyword">{{ search.city }}</span>
+              <span class="recent-details">{{ getSelectedTypes(search.propertyTypes) }}
+                @if (search.minPrice || search.maxPrice) {
+                  &middot; {{ search.minPrice || '?' }}-{{ search.maxPrice || '?' }}&euro;
+                }
+                @if (search.minRooms || search.maxRooms) {
+                  &middot; {{ search.minRooms || '?' }}-{{ search.maxRooms || '?' }}p
+                }
+              </span>
+            </div>
+            <button class="recent-remove" (click)="removeRecentSearch($index, $event)">&times;</button>
+          </div>
+        }
+      </div>
+    }
+  </aside>
 </div>

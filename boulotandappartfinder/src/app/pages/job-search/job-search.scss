@@ -171,6 +171,26 @@
 
 .main-content { flex: 1; min-width: 0; }
 
+.scrape-panel {
+  width: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+  border-top: 3px solid #10b981;
+}
+
+.scrape-panel-header {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  h2 { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
+}
+
 .results-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;
   .results-count {

@@ -6,33 +6,6 @@
       <button class="reset-btn" (click)="reset()">Reset</button>
     </div>
 
-    <!-- Scrape section -->
-    <div class="filter-section scrape-section">
-      <h3>Importer des offres</h3>
-      <div class="scrape-form">
-        <input type="text" placeholder="Poste (ex: Developpeur)" [(ngModel)]="scrapeKeyword" name="scrapeKeyword" />
-        <input type="text" placeholder="Ville (ex: Bordeaux)" [(ngModel)]="scrapeCity" name="scrapeCity" />
-        <button class="btn btn-primary btn-sm" (click)="scrapeJobs()" [disabled]="scraping()">
-          {{ scraping() ? 'Scraping...' : 'Scraper les offres' }}
-        </button>
-      </div>
-
-      @if (recentSearches.length > 0) {
-        <div class="recent-searches">
-          <p class="recent-title">Recherches recentes</p>
-          @for (search of recentSearches; track search.date) {
-            <div class="recent-item" (click)="applyRecentSearch(search)">
-              <div class="recent-info">
-                <span class="recent-keyword">{{ search.keyword }}</span>
-                <span class="recent-city">{{ search.city }}</span>
-              </div>
-              <button class="recent-remove" (click)="removeRecentSearch($index, $event)">&times;</button>
-            </div>
-          }
-        </div>
-      }
-    </div>
-
     <!-- Keyword -->
     <div class="filter-section">
       <h3>Mot-cle</h3>
@@ -192,4 +165,33 @@
       </div>
     }
   </main>
+
+  <!-- Scrape Panel -->
+  <aside class="scrape-panel">
+    <div class="scrape-panel-header">
+      <h2>Importer des offres</h2>
+    </div>
+    <div class="scrape-form">
+      <input type="text" placeholder="Poste (ex: Developpeur)" [(ngModel)]="scrapeKeyword" name="scrapeKeyword" />
+      <input type="text" placeholder="Ville (ex: Bordeaux)" [(ngModel)]="scrapeCity" name="scrapeCity" />
+      <button class="btn btn-primary btn-sm" (click)="scrapeJobs()" [disabled]="scraping()">
+        {{ scraping() ? 'Scraping...' : 'Scraper les offres' }}
+      </button>
+    </div>
+
+    @if (recentSearches.length > 0) {
+      <div class="recent-searches">
+        <p class="recent-title">Recherches recentes</p>
+        @for (search of recentSearches; track search.date) {
+          <div class="recent-item" (click)="applyRecentSearch(search)">
+            <div class="recent-info">
+              <span class="recent-keyword">{{ search.keyword }}</span>
+              <span class="recent-city">{{ search.city }}</span>
+            </div>
+            <button class="recent-remove" (click)="removeRecentSearch($index, $event)">&times;</button>
+          </div>
+        }
+      </div>
+    }
+  </aside>
 </div>

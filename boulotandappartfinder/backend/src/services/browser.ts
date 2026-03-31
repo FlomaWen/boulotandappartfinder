@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type {Browser, Page, PuppeteerLaunchOptions} from 'puppeteer';
-import proxyChain from 'proxy-chain';
+import { anonymizeProxy } from 'proxy-chain';
 import path from 'path';
 
 // Apply stealth plugin
@@ -34,7 +34,7 @@ export async function createStealthBrowser(config: BrowserConfig = {}): Promise<
 
   // Use proxy-chain to anonymize the proxy (handles auth transparently)
   if (proxyUrl) {
-    const anonymizedUrl = await proxyChain.anonymizeProxy(proxyUrl);
+    const anonymizedUrl = await anonymizeProxy(proxyUrl);
     args.push(`--proxy-server=${anonymizedUrl}`);
     console.log(`[Browser] Using proxy via proxy-chain: ${new URL(proxyUrl).hostname}`);
   }

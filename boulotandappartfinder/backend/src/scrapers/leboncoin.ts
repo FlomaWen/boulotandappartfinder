@@ -139,8 +139,10 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   const searchUrl = buildSearchUrl(filters);
   console.log(`[LeBonCoin] Scraping: ${searchUrl}`);
 
-  const browser = await createStealthBrowser({ headless: true, useProxy: true });
+  // Use non-headless so VNC can show the browser if captcha appears
+  const browser = await createStealthBrowser({ headless: false, useProxy: true });
   let insertedCount = 0;
+  let vnc: ChildProcess | null = null;
 
   try {
     const page = await setupPage(browser);
@@ -152,8 +154,36 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
       return document.body.innerHTML.includes('captcha-delivery') || document.body.innerHTML.includes('datadome');
     });
     if (isCaptcha) {
-      console.log('[LeBonCoin] Captcha detected! Use POST /api/scrape/leboncoin-captcha first.');
-      return 0;
+      console.log('[LeBonCoin] Captcha detected! Starting VNC on port 5900...');
+      console.log('[LeBonCoin] Connect via VNC to solve the captcha, then scraping will continue.');
+      vnc = startVnc();
+
+      // Wait up to 3 minutes for user to solve captcha
+      const maxWait = 3 * 60 * 1000;
+      const start = Date.now();
+      let solved = false;
+
+      while (Date.now() - start < maxWait) {
+        await new Promise(r => setTimeout(r, 3000));
+        const stillCaptcha = await page.evaluate(() => {
+          return document.body.innerHTML.includes('captcha-delivery') ||
+            window.location.href.includes('captcha-delivery');
+        });
+        if (!stillCaptcha) {
+          solved = true;
+          break;
+        }
+      }
+
+      if (!solved) {
+        console.log('[LeBonCoin] Captcha not solved in time. Aborting.');
+        stopVnc(vnc);
+        return 0;
+      }
+
+      console.log('[LeBonCoin] Captcha solved! Continuing scrape...');
+      // Navigate to search after captcha is solved
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
     }
 
     // Accept cookies if present
@@ -274,6 +304,7 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     console.log(`[LeBonCoin] Total inserted: ${insertedCount} new listings`);
   } finally {
     await browser.close();
+    if (vnc) stopVnc(vnc);
   }
 
   return insertedCount;

@@ -27,7 +27,8 @@
       "WebFetch(domain:www.welcometothejungle.com)",
       "WebFetch(domain:www.meteojob.com)",
       "Bash(curl -s -L \"https://www.meteojob.com/jobsearch/offers?what=Developpeur+java&where=Bordeaux\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -H \"Accept: text/html\" -H \"Accept-Language: fr-FR,fr;q=0.9\")",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(find /c/Users/Florian/Desktop/devprojet/boulotandappartfinder -type f -name *leboncoin* -o -name *scraper*)"
     ]
   }
 }

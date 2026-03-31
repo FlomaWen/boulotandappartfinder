@@ -1,13 +1,80 @@
 import { getDb } from '../database/schema';
 import { ProxyAgent } from 'undici';
+import { createStealthBrowser, setupPage } from '../services/browser';
+import fs from 'fs';
+import path from 'path';
 
 const LBC_API_URL = 'https://api.leboncoin.fr/finder/search';
 const LBC_API_KEY = 'ba0c2dad52b3ec';
+const COOKIE_FILE = path.resolve(__dirname, '../../data/leboncoin-cookies.json');
 
 function getProxyDispatcher(): ProxyAgent | undefined {
   const proxyUrl = process.env.PROXY_URL;
   if (!proxyUrl) return undefined;
   return new ProxyAgent(proxyUrl);
+}
+
+function loadDatadomeCookie(): string | null {
+  try {
+    if (!fs.existsSync(COOKIE_FILE)) return null;
+    const cookies = JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf-8'));
+    const dd = cookies.find((c: any) => c.name === 'datadome');
+    if (!dd) return null;
+    // Check expiry
+    if (dd.expires && dd.expires < Date.now() / 1000) {
+      console.log('[LeBonCoin API] datadome cookie expired');
+      return null;
+    }
+    console.log('[LeBonCoin API] Using saved datadome cookie');
+    return dd.value;
+  } catch (e) {
+    console.log('[LeBonCoin API] Failed to load cookies:', e);
+    return null;
+  }
+}
+
+/**
+ * Opens a browser on leboncoin.fr so the user can solve the captcha manually.
+ * Once solved, saves all cookies to a file for reuse by the API scraper.
+ */
+export async function solveLeboncoinCaptcha(): Promise<void> {
+  console.log('[LeBonCoin] Opening browser for manual captcha solving...');
+  const browser = await createStealthBrowser({ headless: false });
+  const page = await setupPage(browser);
+
+  await page.goto('https://www.leboncoin.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+
+  console.log('[LeBonCoin] Browser opened. Solve the captcha if present, then browse around.');
+  console.log('[LeBonCoin] Waiting up to 5 minutes for captcha resolution...');
+
+  // Wait until datadome cookie appears with a valid value (captcha solved)
+  // or the user navigates successfully
+  const maxWait = 5 * 60 * 1000;
+  const start = Date.now();
+  let solved = false;
+
+  while (Date.now() - start < maxWait) {
+    const cookies = await page.cookies();
+    const dd = cookies.find(c => c.name === 'datadome');
+    // Check if we're on a real page (not captcha redirect)
+    const url = page.url();
+    if (dd && !url.includes('captcha-delivery.com')) {
+      solved = true;
+      break;
+    }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  if (solved) {
+    const cookies = await page.cookies();
+    fs.mkdirSync(path.dirname(COOKIE_FILE), { recursive: true });
+    fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookies, null, 2));
+    console.log(`[LeBonCoin] Cookies saved to ${COOKIE_FILE} (${cookies.length} cookies)`);
+  } else {
+    console.log('[LeBonCoin] Timeout - captcha not solved in time');
+  }
+
+  await browser.close();
 }
 
 const CITY_POSTCODES: Record<string, { name: string; code: string; department_id: string; region_id: string }> = {
@@ -149,17 +216,25 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     console.log(`[LeBonCoin API] Page ${pageNum} (offset ${offset})...`);
 
     const dispatcher = getProxyDispatcher();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'api_key': LBC_API_KEY,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Origin': 'https://www.leboncoin.fr',
+      'Referer': 'https://www.leboncoin.fr/',
+      'Accept': '*/*',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+    };
+
+    // Attach datadome cookie if available
+    const ddCookie = loadDatadomeCookie();
+    if (ddCookie) {
+      headers['Cookie'] = `datadome=${ddCookie}`;
+    }
+
     const fetchOptions: any = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api_key': LBC_API_KEY,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Origin': 'https://www.leboncoin.fr',
-        'Referer': 'https://www.leboncoin.fr/',
-        'Accept': '*/*',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
+      headers,
       body: JSON.stringify(payload),
     };
     if (dispatcher) {

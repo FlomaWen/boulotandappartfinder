@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { scrapeLeboncoin } from '../scrapers/leboncoin';
+import { scrapeLeboncoin, solveLeboncoinCaptcha } from '../scrapers/leboncoin';
 import { scrapeSeloger } from '../scrapers/seloger';
 import { scrapeHellowork } from '../scrapers/hellowork';
 import { scrapeMeteojob } from '../scrapers/meteojob';
@@ -40,6 +40,18 @@ router.post('/apartments', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Scrape apartments error:', err);
     res.status(500).json({ error: 'Scraping failed', details: String(err) });
+  }
+});
+
+// Opens a browser for manual captcha solving on LeBonCoin
+router.post('/leboncoin-captcha', async (_req: Request, res: Response) => {
+  try {
+    res.json({ message: 'Browser ouvert. Résolvez le captcha dans la fenêtre du navigateur.' });
+    // Run in background — the response is sent immediately
+    await solveLeboncoinCaptcha();
+  } catch (err) {
+    console.error('Captcha solve error:', err);
+    // Response already sent, just log
   }
 });
 

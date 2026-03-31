@@ -1,6 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { JobService, Job } from '../../../../backend/src/services/job.service';
+import { JobService, Job } from '../../services/job.service';
 
 interface Filters {
   keyword: string;

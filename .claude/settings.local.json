@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx ng:*)",
+      "Bash(npm install:*)",
+      "Bash(curl -s http://127.0.0.1:9222/json/version)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist)",
+      "Bash(curl -s http://localhost:3000/api/apartments)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(f''''Total: {len\\(data\\)}''''\\); prices=[d[''''price''''] for d in data]; print\\(f''''Price 0: {prices.count\\(0\\)}''''\\); print\\(f''''Price > 0: {len\\([p for p in prices if p > 0]\\)}''''\\); print\\(''''Sample prices:'''', prices[:10]\\)\")",
+      "Bash(node:*)",
+      "Bash(curl -s https://www.google.com/search?q=seloger+scraper+CSS+selectors+HTML+structure+listing+cards -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "Bash(curl -s https://www.google.com/search?q=seloger+POCOFR+location+codes+format+API -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "Bash(curl -s https://www.google.com/search?q=%22seloger%22+%22classified-search%22+scraping+python+beautifulsoup+selectors+2024+2025 -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "WebSearch",
+      "WebFetch(domain:scrapfly.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.seloger.com)",
+      "WebFetch(domain:www.autom.dev)",
+      "WebFetch(domain:webscraping.ai)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -o 'data-testid=\"\"\"\"card-mfe-picture-box-gallery-test-id\"\"\"\"[^>]*>.\\\\{0,500\\\\}' seloger_debug_p1.html)"
+    ]
+  }
+}

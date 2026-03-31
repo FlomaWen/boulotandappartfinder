@@ -12,7 +12,9 @@
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "puppeteer": "^23.0.0"
+    "puppeteer": "^23.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

@@ -1,6 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApartmentService, Apartment } from '../../../../backend/src/services/apartment.service';
+import { ApartmentService, Apartment, ScrapeFilters } from '../../services/apartment.service';
 
 interface Filters {
   city: string;
@@ -10,6 +10,14 @@ interface Filters {
   type: string;
   bedrooms: string;
   bathrooms: string;
+}
+
+interface PropertyTypes {
+  appartement: boolean;
+  maison: boolean;
+  terrain: boolean;
+  parking: boolean;
+  autre: boolean;
 }
 
 @Component({
@@ -35,7 +43,26 @@ export class ApartmentSearch implements OnInit {
   readonly scraping = signal(false);
 
   scrapeCity = '';
+  scrapeMinPrice: number | null = null;
   scrapeMaxPrice: number | null = null;
+  scrapePropertyTypes: PropertyTypes = {
+    appartement: true,
+    maison: false,
+    terrain: false,
+    parking: false,
+    autre: false,
+  };
+  scrapeMinRooms: number | null = null;
+  scrapeMaxRooms: number | null = null;
+  scrapeMinBedrooms: number | null = null;
+  scrapeMaxBedrooms: number | null = null;
+  scrapeMinSurface: number | null = null;
+  scrapeMaxSurface: number | null = null;
+  scrapeMinLandSurface: number | null = null;
+  scrapeMaxLandSurface: number | null = null;
+  scrapeFurnished = '';
+
+  roomOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
   constructor(private apartmentService: ApartmentService) {}
 
@@ -47,8 +74,10 @@ export class ApartmentSearch implements OnInit {
     this.loading.set(true);
     const filters: Record<string, string | number> = {};
     if (this.filters.city) filters['city'] = this.filters.city;
-    if (this.filters.minPrice) filters['minPrice'] = this.filters.minPrice;
-    if (this.filters.maxPrice) filters['maxPrice'] = this.filters.maxPrice;
+    if (this.filters.priceRange !== 'custom') {
+      if (this.filters.minPrice) filters['minPrice'] = this.filters.minPrice;
+      if (this.filters.maxPrice) filters['maxPrice'] = this.filters.maxPrice;
+    }
     if (this.filters.type) filters['type'] = this.filters.type;
     if (this.filters.bedrooms) filters['bedrooms'] = +this.filters.bedrooms;
     if (this.filters.bathrooms) filters['bathrooms'] = +this.filters.bathrooms;
@@ -94,10 +123,47 @@ export class ApartmentSearch implements OnInit {
     window.open(url, '_blank');
   }
 
+  toggleRoom(field: 'scrapeMinRooms' | 'scrapeMaxRooms' | 'scrapeMinBedrooms' | 'scrapeMaxBedrooms', value: number): void {
+    if (this[field] === value) {
+      this[field] = null;
+    } else {
+      this[field] = value;
+    }
+  }
+
+  isRoomInRange(min: number | null, max: number | null, value: number): boolean {
+    if (min !== null && max !== null) return value >= min && value <= max;
+    if (min !== null) return value === min;
+    if (max !== null) return value === max;
+    return false;
+  }
+
   scrapeApartments(): void {
     if (!this.scrapeCity) return;
     this.scraping.set(true);
-    this.apartmentService.scrape(this.scrapeCity, this.scrapeMaxPrice || undefined).subscribe({
+
+    const selectedTypes = Object.entries(this.scrapePropertyTypes)
+      .filter(([_, v]) => v)
+      .map(([k]) => k);
+
+    const scrapeFilters: ScrapeFilters = {
+      city: this.scrapeCity,
+    };
+
+    if (this.scrapeMinPrice) scrapeFilters.minPrice = this.scrapeMinPrice;
+    if (this.scrapeMaxPrice) scrapeFilters.maxPrice = this.scrapeMaxPrice;
+    if (selectedTypes.length > 0) scrapeFilters.propertyTypes = selectedTypes;
+    if (this.scrapeMinRooms) scrapeFilters.minRooms = this.scrapeMinRooms;
+    if (this.scrapeMaxRooms) scrapeFilters.maxRooms = this.scrapeMaxRooms;
+    if (this.scrapeMinBedrooms) scrapeFilters.minBedrooms = this.scrapeMinBedrooms;
+    if (this.scrapeMaxBedrooms) scrapeFilters.maxBedrooms = this.scrapeMaxBedrooms;
+    if (this.scrapeMinSurface) scrapeFilters.minSurface = this.scrapeMinSurface;
+    if (this.scrapeMaxSurface) scrapeFilters.maxSurface = this.scrapeMaxSurface;
+    if (this.scrapeMinLandSurface) scrapeFilters.minLandSurface = this.scrapeMinLandSurface;
+    if (this.scrapeMaxLandSurface) scrapeFilters.maxLandSurface = this.scrapeMaxLandSurface;
+    if (this.scrapeFurnished) scrapeFilters.furnished = this.scrapeFurnished;
+
+    this.apartmentService.scrape(scrapeFilters).subscribe({
       next: (res) => {
         this.scraping.set(false);
         this.loadApartments();

@@ -37,3 +37,72 @@ describe('GET /api/jobs', () => {
     expect(deletedJobs.length).toBe(0);
   });
 });
+
+describe('GET /api/jobs/:id', () => {
+  it('should return 404 for non-existing job', async () => {
+    const res = await request(app).get('/api/jobs/999999');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Not found');
+  });
+});
+
+describe('PATCH /api/jobs/:id/status', () => {
+  it('should return 400 for invalid status', async () => {
+    const res = await request(app)
+      .patch('/api/jobs/1/status')
+      .send({ status: 'invalid' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid status');
+  });
+
+  it('should return 404 for non-existing job', async () => {
+    const res = await request(app)
+      .patch('/api/jobs/999999/status')
+      .send({ status: 'postule' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Not found');
+  });
+});
+
+describe('DELETE /api/jobs/:id', () => {
+  it('should return 404 for non-existing job', async () => {
+    const res = await request(app).delete('/api/jobs/999999');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Not found');
+  });
+});
+
+describe('POST /api/scrape/jobs', () => {
+  it('should return 400 if keyword is missing', async () => {
+    const res = await request(app)
+      .post('/api/scrape/jobs')
+      .send({ city: 'Paris' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('keyword and city are required');
+  });
+
+  it('should return 400 if city is missing', async () => {
+    const res = await request(app)
+      .post('/api/scrape/jobs')
+      .send({ keyword: 'dev' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('keyword and city are required');
+  });
+});
+
+describe('POST /api/scrape/apartments', () => {
+  it('should return 400 if city is missing', async () => {
+    const res = await request(app)
+      .post('/api/scrape/apartments')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('city is required');
+  });
+});

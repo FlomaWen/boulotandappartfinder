@@ -1,24 +1,24 @@
-import { createStealthBrowser, setupPage, randomDelay } from '../services/browser';
 import { getDb } from '../database/schema';
-import fs from 'fs';
-import path from 'path';
 
-const CITY_POSTCODES: Record<string, { name: string; code: string }> = {
-  paris: { name: 'Paris', code: '75000' },
-  lyon: { name: 'Lyon', code: '69000' },
-  bordeaux: { name: 'Bordeaux', code: '33000' },
-  toulouse: { name: 'Toulouse', code: '31000' },
-  nantes: { name: 'Nantes', code: '44000' },
-  marseille: { name: 'Marseille', code: '13000' },
-  montpellier: { name: 'Montpellier', code: '34000' },
-  lille: { name: 'Lille', code: '59000' },
-  strasbourg: { name: 'Strasbourg', code: '67000' },
-  rennes: { name: 'Rennes', code: '35000' },
-  nice: { name: 'Nice', code: '06000' },
-  grenoble: { name: 'Grenoble', code: '38000' },
-  rouen: { name: 'Rouen', code: '76000' },
-  toulon: { name: 'Toulon', code: '83000' },
-  dijon: { name: 'Dijon', code: '21000' },
+const LBC_API_URL = 'https://api.leboncoin.fr/finder/search';
+const LBC_API_KEY = 'ba0c2dad52b3ec';
+
+const CITY_POSTCODES: Record<string, { name: string; code: string; department_id: string; region_id: string }> = {
+  paris: { name: 'Paris', code: '75000', department_id: '75', region_id: '12' },
+  lyon: { name: 'Lyon', code: '69000', department_id: '69', region_id: '1' },
+  bordeaux: { name: 'Bordeaux', code: '33000', department_id: '33', region_id: '2' },
+  toulouse: { name: 'Toulouse', code: '31000', department_id: '31', region_id: '16' },
+  nantes: { name: 'Nantes', code: '44000', department_id: '44', region_id: '18' },
+  marseille: { name: 'Marseille', code: '13000', department_id: '13', region_id: '21' },
+  montpellier: { name: 'Montpellier', code: '34000', department_id: '34', region_id: '13' },
+  lille: { name: 'Lille', code: '59000', department_id: '59', region_id: '17' },
+  strasbourg: { name: 'Strasbourg', code: '67000', department_id: '67', region_id: '1' },
+  rennes: { name: 'Rennes', code: '35000', department_id: '35', region_id: '3' },
+  nice: { name: 'Nice', code: '06000', department_id: '6', region_id: '21' },
+  grenoble: { name: 'Grenoble', code: '38000', department_id: '38', region_id: '1' },
+  rouen: { name: 'Rouen', code: '76000', department_id: '76', region_id: '17' },
+  toulon: { name: 'Toulon', code: '83000', department_id: '83', region_id: '21' },
+  dijon: { name: 'Dijon', code: '21000', department_id: '21', region_id: '4' },
 };
 
 export interface LeboncoinFilters {
@@ -37,257 +37,163 @@ export interface LeboncoinFilters {
   furnished?: string;
 }
 
-export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number> {
+function buildApiPayload(filters: LeboncoinFilters, offset = 0) {
   const cityRaw = filters.city.trim();
-
-  // Support formats: "Bordeaux", "Bordeaux 33300", "Bordeaux_33300"
   const match = cityRaw.match(/^([a-zA-ZÀ-ÿ-]+)\s*[_\s]?\s*(\d{5})?$/);
   const cityName = match ? match[1] : cityRaw;
   const explicitPostcode = match ? match[2] : undefined;
-
   const cityLower = cityName.toLowerCase();
   const cityInfo = CITY_POSTCODES[cityLower];
 
-  let locationParam: string;
-  if (explicitPostcode) {
-    // User specified a postcode — use it directly
-    const displayName = cityInfo ? cityInfo.name : cityName.charAt(0).toUpperCase() + cityName.slice(1).toLowerCase();
-    locationParam = `${displayName}_${explicitPostcode}`;
-  } else if (cityInfo) {
-    locationParam = `${cityInfo.name}_${cityInfo.code}`;
-  } else {
-    locationParam = cityRaw;
-  }
+  const displayName = cityInfo ? cityInfo.name : cityName.charAt(0).toUpperCase() + cityName.slice(1).toLowerCase();
+  const zipcode = explicitPostcode || cityInfo?.code || '';
 
-  const typeMap: Record<string, string> = {
-    appartement: '2',
-    maison: '1',
-    terrain: '3',
-    parking: '4',
-    autre: '5',
+  // Build location
+  const location: any = {
+    locationType: 'city',
+    label: `${displayName} (${zipcode})`,
+    city: displayName,
+    zipcode,
   };
+  if (cityInfo) {
+    location.department_id = cityInfo.department_id;
+    location.region_id = cityInfo.region_id;
+  }
+
+  // Build real estate types
   const types = filters.propertyTypes?.length
-    ? filters.propertyTypes.map(t => typeMap[t] || t).join(',')
-    : '2';
+    ? filters.propertyTypes
+    : ['appartement', '2'];
 
-  let url = `https://www.leboncoin.fr/recherche?category=10&locations=${encodeURIComponent(locationParam)}&real_estate_type=${types}`;
-
+  // Build ranges
+  const ranges: any = {};
   if (filters.minPrice || filters.maxPrice) {
-    const pMin = filters.minPrice ?? 'min';
-    const pMax = filters.maxPrice ?? 'max';
-    url += `&price=${pMin}-${pMax}`;
+    ranges.price = {};
+    if (filters.minPrice) ranges.price.min = filters.minPrice;
+    if (filters.maxPrice) ranges.price.max = filters.maxPrice;
   }
-
   if (filters.minRooms || filters.maxRooms) {
-    const rMin = filters.minRooms ?? 'min';
-    const rMax = filters.maxRooms ?? 'max';
-    url += `&rooms=${rMin}-${rMax}`;
+    ranges.rooms = {};
+    if (filters.minRooms) ranges.rooms.min = filters.minRooms;
+    if (filters.maxRooms) ranges.rooms.max = filters.maxRooms;
   }
-
   if (filters.minBedrooms || filters.maxBedrooms) {
-    const bMin = filters.minBedrooms ?? 'min';
-    const bMax = filters.maxBedrooms ?? 'max';
-    url += `&bedrooms=${bMin}-${bMax}`;
+    ranges.bedrooms = {};
+    if (filters.minBedrooms) ranges.bedrooms.min = filters.minBedrooms;
+    if (filters.maxBedrooms) ranges.bedrooms.max = filters.maxBedrooms;
   }
-
   if (filters.minSurface || filters.maxSurface) {
-    const sMin = filters.minSurface ?? 'min';
-    const sMax = filters.maxSurface ?? 'max';
-    url += `&square=${sMin}-${sMax}`;
+    ranges.square = {};
+    if (filters.minSurface) ranges.square.min = filters.minSurface;
+    if (filters.maxSurface) ranges.square.max = filters.maxSurface;
   }
-
   if (filters.minLandSurface || filters.maxLandSurface) {
-    const lMin = filters.minLandSurface ?? 'min';
-    const lMax = filters.maxLandSurface ?? 'max';
-    url += `&land_plot_surface=${lMin}-${lMax}`;
+    ranges.land_plot_surface = {};
+    if (filters.minLandSurface) ranges.land_plot_surface.min = filters.minLandSurface;
+    if (filters.maxLandSurface) ranges.land_plot_surface.max = filters.maxLandSurface;
   }
 
+  const enums: any = {
+    ad_type: ['offer'],
+    real_estate_type: types,
+  };
   if (filters.furnished === 'meuble') {
-    url += `&furnished=1`;
+    enums.furnished = ['1'];
   } else if (filters.furnished === 'non_meuble') {
-    url += `&furnished=2`;
+    enums.furnished = ['2'];
   }
 
-  console.log(`[LeBonCoin] Scraping: ${url}`);
+  return {
+    filters: {
+      enums,
+      category: { id: '10' },
+      location: { locations: [location] },
+      ranges,
+    },
+    sort_by: 'relevance',
+    limit: 35,
+    limit_alu: 0,
+    offset,
+  };
+}
 
-  // Launch with stealth plugin and optional proxy
-  const isProduction = process.env.NODE_ENV === 'production';
-  const browser = await createStealthBrowser({
-    headless: isProduction,
-    useProxy: true,
-  });
+export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number> {
+  const cityRaw = filters.city.trim();
+  const match = cityRaw.match(/^([a-zA-ZÀ-ÿ-]+)\s*[_\s]?\s*(\d{5})?$/);
+  const cityName = match ? match[1] : cityRaw;
+  const cityInfo = CITY_POSTCODES[cityName.toLowerCase()];
+  const cleanCity = cityInfo ? cityInfo.name : cityName.charAt(0).toUpperCase() + cityName.slice(1).toLowerCase();
+
+  console.log(`[LeBonCoin API] Searching apartments in ${cleanCity}...`);
+
+  const db = getDb();
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO apartments (title, city, price, image, url, source, type, description)
+    VALUES (?, ?, ?, ?, ?, 'leboncoin', 'Appartement', ?)
+  `);
 
   let insertedCount = 0;
+  let offset = 0;
+  let pageNum = 1;
 
-  try {
-    const page = await setupPage(browser);
-    await randomDelay(2000, 5000);
+  while (true) {
+    const payload = buildApiPayload(filters, offset);
 
-    try {
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    } catch (navError: any) {
-      // Dump whatever HTML we got for debugging
-      const debugHtml = await page.content().catch(() => 'EMPTY');
-      const debugDir = path.join(__dirname, '../../data');
-      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-      fs.writeFileSync(path.join(debugDir, 'leboncoin_nav_error.html'), debugHtml, 'utf-8');
-      console.log(`[LeBonCoin] Navigation failed: ${navError.message}`);
-      console.log(`[LeBonCoin] Page title: ${await page.title().catch(() => 'N/A')}`);
-      console.log(`[LeBonCoin] Page URL: ${page.url()}`);
-      console.log(`[LeBonCoin] HTML length: ${debugHtml.length}`);
+    console.log(`[LeBonCoin API] Page ${pageNum} (offset ${offset})...`);
 
-      // If it's just a timeout, continue — we might still have content
-      if (!navError.message.includes('timeout') && !navError.message.includes('Timeout')) {
-        throw navError;
-      }
-      console.log('[LeBonCoin] Timeout but continuing with whatever loaded...');
-    }
-
-    // Check if we hit a captcha page
-    const isCaptcha = await page.evaluate(() => {
-      return document.title === 'leboncoin.fr' && document.body.innerHTML.includes('captcha-delivery');
+    const response = await fetch(LBC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api_key': LBC_API_KEY,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Origin': 'https://www.leboncoin.fr',
+        'Referer': 'https://www.leboncoin.fr/',
+        'Accept': '*/*',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
     });
 
-    if (isCaptcha) {
-      console.log('[LeBonCoin] Captcha detected! Please solve it in the browser window. Waiting up to 120 seconds...');
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 120000 });
-      console.log('[LeBonCoin] Captcha solved! Page navigated.');
-      await new Promise(r => setTimeout(r, 3000));
+    if (!response.ok) {
+      console.log(`[LeBonCoin API] Error ${response.status}: ${response.statusText}`);
+      break;
     }
 
-    // Wait for JS rendering
-    await new Promise(r => setTimeout(r, 3000));
+    const data = await response.json();
+    const ads = data.ads || [];
 
-    // Try to accept cookie consent if present
-    try {
-      const consentBtn = await page.$('button#didomi-notice-agree-button, [aria-label="Accepter & Fermer"], button[class*="accept"]');
-      if (consentBtn) {
-        await consentBtn.click();
-        await new Promise(r => setTimeout(r, 2000));
+    console.log(`[LeBonCoin API] Page ${pageNum}: ${ads.length} ads`);
+
+    if (ads.length === 0) break;
+
+    const insertMany = db.transaction((items: any[]) => {
+      for (const ad of items) {
+        const title = ad.subject || '';
+        const price = ad.price?.[0] || 0;
+        const city = ad.location?.city || cleanCity;
+        const url = ad.url || `https://www.leboncoin.fr/ad/immobilier/${ad.list_id}`;
+        const image = ad.images?.urls?.[0] || ad.images?.thumb_url || '';
+        const description = ad.body || '';
+
+        const result = insert.run(title, city, price, image, url, description);
+        if (result.changes > 0) insertedCount++;
       }
-    } catch { /* no consent banner */ }
+    });
+    insertMany(ads);
 
-    const db = getDb();
-    const insert = db.prepare(`
-      INSERT OR IGNORE INTO apartments (title, city, price, image, url, source, type, description)
-      VALUES (?, ?, ?, ?, ?, 'leboncoin', 'Appartement', ?)
-    `);
-    const cleanCity = cityInfo ? cityInfo.name : cityName.charAt(0).toUpperCase() + cityName.slice(1).toLowerCase();
-
-    let pageNum = 1;
-
-    while (true) {
-      // Wait for ad cards to appear
-      await page.waitForSelector('[data-test-id="ad"][data-qa-id="aditem_container"]', { timeout: 15000 }).catch(() => {
-        console.log(`[LeBonCoin] Page ${pageNum}: Could not find ad cards`);
-      });
-
-      // Debug: dump HTML and check selectors
-      const debugHtml = await page.content();
-      const debugDir = path.join(__dirname, '../../data');
-      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-      fs.writeFileSync(path.join(debugDir, `leboncoin_debug_p${pageNum}.html`), debugHtml, 'utf-8');
-      console.log(`[LeBonCoin] Page ${pageNum}: HTML size = ${debugHtml.length} chars`);
-
-      const debugCounts = await page.evaluate(() => {
-        return {
-          adCards: document.querySelectorAll('[data-test-id="ad"][data-qa-id="aditem_container"]').length,
-          adLinks: document.querySelectorAll('a.absolute.inset-0').length,
-          prices: document.querySelectorAll('[data-test-id="price"]').length,
-          allLinks: document.querySelectorAll('a[href*="/ad/"]').length,
-          title: document.title,
-          bodyLen: document.body.innerHTML.length,
-        };
-      });
-      console.log(`[LeBonCoin] Page ${pageNum} debug:`, JSON.stringify(debugCounts));
-
-      const listings = await page.evaluate(() => {
-        const results: Array<{
-          title: string;
-          price: number;
-          city: string;
-          url: string;
-          image: string;
-          details: string;
-        }> = [];
-
-        const cards = document.querySelectorAll('[data-test-id="ad"][data-qa-id="aditem_container"]');
-
-        cards.forEach((card: Element) => {
-          try {
-            // Find the ad link — use class-based selector to avoid apostrophe escaping issues
-            const link = card.querySelector('a.absolute.inset-0') as HTMLAnchorElement | null;
-            const href = link?.getAttribute('href') || '';
-            if (!href) return;
-
-            // Title is on a sibling span (not inside the <a>), with title="Voir l'annonce: ..."
-            const titleSpan = card.querySelector('span[title^="Voir"]');
-            const rawTitle = titleSpan?.getAttribute('title') || '';
-            const title = rawTitle.replace(/^Voir l.annonce:\s*/i, '').trim();
-
-            const priceEl = card.querySelector('[data-test-id="price"]');
-            const priceText = priceEl?.textContent?.trim() || '0';
-            const price = parseInt(priceText.replace(/[^0-9]/g, ''), 10) || 0;
-
-            const locationEl = card.querySelector('[data-test-id="adcard-housing-location"] p');
-            const cityText = locationEl?.textContent?.trim() || '';
-
-            const imgEl = card.querySelector('img');
-            const image = imgEl?.getAttribute('src') || '';
-            const sourceEl = card.querySelector('source[type="image/avif"]');
-            const betterImage = sourceEl?.getAttribute('srcset') || image;
-
-            if (title) {
-              results.push({
-                title,
-                price,
-                city: cityText,
-                url: href.startsWith('http') ? href : `https://www.leboncoin.fr${href}`,
-                image: betterImage,
-                details: '',
-              });
-            }
-          } catch {
-            // skip malformed card
-          }
-        });
-
-        return results;
-      });
-
-      console.log(`[LeBonCoin] Page ${pageNum}: Found ${listings.length} listings`);
-
-      if (listings.length === 0) break;
-
-      // Insert into DB
-      const insertMany = db.transaction((items: typeof listings) => {
-        for (const item of items) {
-          if (!item.city || item.city.includes('/')) {
-            item.city = cleanCity;
-          }
-          const result = insert.run(item.title, item.city || filters.city, item.price, item.image, item.url, item.details);
-          if (result.changes > 0) insertedCount++;
-        }
-      });
-      insertMany(listings);
-
-      // Try to go to next page
-      const nextBtn = await page.$('a[aria-label="Page suivante"]');
-      if (!nextBtn) {
-        console.log('[LeBonCoin] No more pages.');
-        break;
-      }
-
-      await nextBtn.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-      await randomDelay(3000, 7000);
-      pageNum++;
+    // Check if there are more pages
+    const total = data.total || 0;
+    offset += ads.length;
+    if (offset >= total || ads.length < 35) {
+      console.log(`[LeBonCoin API] No more pages (total: ${total}).`);
+      break;
     }
 
-    console.log(`[LeBonCoin] Total inserted: ${insertedCount} new listings across ${pageNum} pages`);
-  } finally {
-    await browser.close();
+    pageNum++;
+    // Small delay between requests
+    await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
   }
 
+  console.log(`[LeBonCoin API] Total inserted: ${insertedCount} new listings`);
   return insertedCount;
 }

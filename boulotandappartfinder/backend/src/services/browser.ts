@@ -39,8 +39,11 @@ export async function createStealthBrowser(config: BrowserConfig = {}): Promise<
     console.log(`[Browser] Using proxy via proxy-chain: ${new URL(proxyUrl).hostname}`);
   }
 
+  // Use Xvfb (virtual display) in production — Chrome runs non-headless, harder to detect
+  const useXvfb = process.env.DISPLAY === ':99';
+
   const launchOptions: PuppeteerLaunchOptions = {
-    headless: headless,
+    headless: useXvfb ? false : headless,
     userDataDir: CHROME_PROFILE_DIR,
     args,
     defaultViewport: { width: 1920, height: 1080 },

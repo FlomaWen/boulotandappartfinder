@@ -187,8 +187,13 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   let insertedCount = 0;
 
   try {
-    console.log('[LeBonCoin] Attempting with residential proxy...');
-    browser = await createStealthBrowser({ headless: false, useProxy: true });
+    try {
+      console.log('[LeBonCoin] Attempting with residential proxy...');
+      browser = await createStealthBrowser({ headless: false, useProxy: true });
+    } catch (browserErr: any) {
+      console.error(`[LeBonCoin] Failed to launch browser: ${browserErr.message}`);
+      throw browserErr;
+    }
     let page = await setupPage(browser);
     console.log('[LeBonCoin] Browser ready, waiting before navigation...');
     await randomDelay(2000, 4000);
@@ -350,8 +355,11 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     }
 
     console.log(`[LeBonCoin] Total inserted: ${insertedCount} new listings`);
+  } catch (err: any) {
+    console.error(`[LeBonCoin] Error: ${err.message}`);
+    throw err;
   } finally {
-    await browser.close();
+    try { await browser?.close(); } catch {}
   }
 
   return insertedCount;

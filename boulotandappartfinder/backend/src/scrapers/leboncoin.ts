@@ -190,7 +190,7 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   try {
     const page = await setupPage(browser);
     await randomDelay(2000, 4000);
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 90000 });
 
     // Check for captcha and solve automatically via 2Captcha
     const captchaResolved = await solveDataDomeCaptcha(page, searchUrl);

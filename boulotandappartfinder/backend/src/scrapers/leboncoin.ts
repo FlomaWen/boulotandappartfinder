@@ -73,7 +73,7 @@ export async function solveLeboncoinCaptcha(): Promise<void> {
   const browser = await createStealthBrowser({ headless: false, useProxy: true });
   const page = await setupPage(browser);
 
-  await page.goto('https://www.leboncoin.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.goto('https://www.leboncoin.fr', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await solveDataDomeCaptcha(page, 'https://www.leboncoin.fr');
 
   console.log('[LeBonCoin] Session warmed up. Chrome profile saved for next scrape.');
@@ -147,7 +147,7 @@ async function solveDataDomeCaptcha(page: any, pageUrl: string): Promise<boolean
 
       // Reload the page with the valid cookie
       await randomDelay(1000, 2000);
-      await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
       // Verify captcha is gone
       const stillCaptcha = await page.evaluate(() => {
@@ -182,17 +182,36 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
   const searchUrl = buildSearchUrl(filters);
   console.log(`[LeBonCoin] Scraping: ${searchUrl}`);
-
-  // Use residential proxy to avoid datacenter IP bans
-  const browser = await createStealthBrowser({ headless: false, useProxy: true });
+  // Try with proxy first, fallback without proxy if it times out
+  let browser!: Awaited<ReturnType<typeof createStealthBrowser>>;
   let insertedCount = 0;
 
   try {
-    const page = await setupPage(browser);
+    console.log('[LeBonCoin] Attempting with residential proxy...');
+    browser = await createStealthBrowser({ headless: false, useProxy: true });
+    let page = await setupPage(browser);
     console.log('[LeBonCoin] Browser ready, waiting before navigation...');
     await randomDelay(2000, 4000);
-    console.log('[LeBonCoin] Navigating to search page...');
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 0 });
+
+    let loaded = false;
+    try {
+      console.log('[LeBonCoin] Navigating to search page (timeout: 120s)...');
+      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      loaded = true;
+    } catch (navErr: any) {
+      console.log(`[LeBonCoin] Proxy navigation failed: ${navErr.message}`);
+    }
+
+    if (!loaded) {
+      console.log('[LeBonCoin] Retrying without proxy...');
+      await browser.close();
+      browser = await createStealthBrowser({ headless: false, useProxy: false });
+      page = await setupPage(browser);
+      await randomDelay(2000, 4000);
+      console.log('[LeBonCoin] Navigating without proxy (timeout: 120s)...');
+      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    }
+
     console.log('[LeBonCoin] Page loaded successfully.');
 
     // Check for captcha and solve automatically via 2Captcha
@@ -212,9 +231,15 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
       }
     } catch { /* no consent banner */ }
 
-    // Wait for content to render
-    console.log('[LeBonCoin] Waiting for content to render...');
-    await new Promise(r => setTimeout(r, 5000));
+    // Wait for ad cards to render (LeBonCoin is a JS-heavy SPA)
+    console.log('[LeBonCoin] Waiting for ad cards to render...');
+    try {
+      await page.waitForSelector('[data-test-id="ad"]', { timeout: 30000 });
+      console.log('[LeBonCoin] Ad cards detected!');
+    } catch {
+      console.log('[LeBonCoin] No ad cards found after 30s, continuing anyway...');
+    }
+    await new Promise(r => setTimeout(r, 2000));
 
     const db = getDb();
     const insert = db.prepare(`
@@ -319,7 +344,7 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
       const fullNextUrl = nextPageUrl.startsWith('http') ? nextPageUrl : `https://www.leboncoin.fr${nextPageUrl}`;
       console.log(`[LeBonCoin] Navigating to page ${pageNum + 1}...`);
-      await page.goto(fullNextUrl, { waitUntil: 'networkidle2', timeout: 0 });
+      await page.goto(fullNextUrl, { waitUntil: 'domcontentloaded', timeout: 0 });
       await randomDelay(3000, 7000);
       pageNum++;
     }

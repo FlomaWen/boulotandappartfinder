@@ -189,8 +189,11 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
   try {
     const page = await setupPage(browser);
+    console.log('[LeBonCoin] Browser ready, waiting before navigation...');
     await randomDelay(2000, 4000);
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    console.log('[LeBonCoin] Navigating to search page...');
+    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 0 });
+    console.log('[LeBonCoin] Page loaded successfully.');
 
     // Check for captcha and solve automatically via 2Captcha
     const captchaResolved = await solveDataDomeCaptcha(page, searchUrl);
@@ -203,12 +206,14 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     try {
       const consentBtn = await page.$('button#didomi-notice-agree-button, [aria-label="Accepter & Fermer"], button[id*="accept"]');
       if (consentBtn) {
+        console.log('[LeBonCoin] Accepting cookies...');
         await consentBtn.click();
         await new Promise(r => setTimeout(r, 2000));
       }
     } catch { /* no consent banner */ }
 
     // Wait for content to render
+    console.log('[LeBonCoin] Waiting for content to render...');
     await new Promise(r => setTimeout(r, 5000));
 
     const db = getDb();
@@ -287,16 +292,19 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
       console.log(`[LeBonCoin] Page ${pageNum}: Found ${listings.length} listings`);
 
-      if (listings.length === 0) break;
+      if (listings.length === 0) {
+        console.log(`[LeBonCoin] Page ${pageNum}: No listings found — stopping.`);
+        break;
+      }
 
-      const insertMany = db.transaction((items: typeof listings) => {
-        for (const item of items) {
-          const city = item.city || cleanCity;
-          const result = insert.run(item.title, city, item.price, item.image, item.url, item.description);
-          if (result.changes > 0) insertedCount++;
-        }
-      });
-      insertMany(listings);
+      for (let i = 0; i < listings.length; i++) {
+        const item = listings[i];
+        const city = item.city || cleanCity;
+        const result = insert.run(item.title, city, item.price, item.image, item.url, item.description);
+        const status = result.changes > 0 ? 'NEW' : 'already exists';
+        console.log(`[LeBonCoin] Page ${pageNum} | Annonce ${i + 1}/${listings.length}: ${item.price}€ — ${item.title} (${city}) [${status}]`);
+        if (result.changes > 0) insertedCount++;
+      }
 
       // Try next page
       const nextPageUrl = await page.evaluate(() => {
@@ -305,12 +313,13 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
       });
 
       if (!nextPageUrl) {
-        console.log('[LeBonCoin] No more pages.');
+        console.log(`[LeBonCoin] No more pages after page ${pageNum}.`);
         break;
       }
 
       const fullNextUrl = nextPageUrl.startsWith('http') ? nextPageUrl : `https://www.leboncoin.fr${nextPageUrl}`;
-      await page.goto(fullNextUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      console.log(`[LeBonCoin] Navigating to page ${pageNum + 1}...`);
+      await page.goto(fullNextUrl, { waitUntil: 'networkidle2', timeout: 0 });
       await randomDelay(3000, 7000);
       pageNum++;
     }

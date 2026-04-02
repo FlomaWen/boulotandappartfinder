@@ -10,6 +10,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "2captcha-ts": "^2.4.1",
     "better-sqlite3": "^11.7.0",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",

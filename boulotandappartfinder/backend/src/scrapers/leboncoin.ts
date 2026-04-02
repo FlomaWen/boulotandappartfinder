@@ -1,8 +1,8 @@
 import { createStealthBrowser, setupPage, randomDelay } from '../services/browser';
 import { getDb } from '../database/schema';
-import { execSync, spawn, ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { Solver } from '2captcha-ts';
 
 const CITY_POSTCODES: Record<string, { name: string; code: string }> = {
   paris: { name: 'Paris', code: '75000' },
@@ -64,71 +64,113 @@ function buildSearchUrl(filters: LeboncoinFilters): string {
   return url;
 }
 
-function startVnc(): ChildProcess | null {
-  try {
-    try { execSync('pkill x11vnc', { stdio: 'ignore' }); } catch {}
-    const vnc = spawn('x11vnc', ['-display', ':99', '-nopw', '-forever', '-shared'], {
-      stdio: 'ignore',
-      detached: true,
-    });
-    vnc.unref();
-    console.log('[LeBonCoin] x11vnc started on port 5900');
-    return vnc;
-  } catch (e) {
-    console.log('[LeBonCoin] Failed to start x11vnc:', e);
-    return null;
-  }
-}
-
-function stopVnc(vnc: ChildProcess | null) {
-  if (vnc) {
-    try { process.kill(-vnc.pid!); } catch {}
-  }
-  try { execSync('pkill x11vnc', { stdio: 'ignore' }); } catch {}
-  console.log('[LeBonCoin] x11vnc stopped');
-}
-
 /**
- * Opens a free browser session via VNC. The user can browse Google, log in,
- * navigate to leboncoin.fr, solve captchas, etc. The Chrome profile is saved
- * at data/chrome-profile and reused by subsequent scrapes.
- * Session stays open for 10 minutes or until the user calls the close endpoint.
+ * Manually solve captcha — now just navigates to LeBonCoin with proxy
+ * and lets 2Captcha handle any DataDome challenge automatically.
  */
 export async function solveLeboncoinCaptcha(): Promise<void> {
-  console.log('[LeBonCoin] Opening free browser session via VNC...');
-  console.log('[LeBonCoin] Connect via VNC on port 5900.');
-  console.log('[LeBonCoin] Browse freely: Google, log in, then navigate to leboncoin.fr');
-  console.log('[LeBonCoin] Session will stay open for 10 minutes.');
-
-  const vnc = startVnc();
-  const browser = await createStealthBrowser({ headless: false, useProxy: false });
+  console.log('[LeBonCoin] Opening browser to warm up session + solve captcha via 2Captcha...');
+  const browser = await createStealthBrowser({ headless: false, useProxy: true });
   const page = await setupPage(browser);
 
-  // Start on Google so the user can browse naturally
-  await page.goto('https://www.google.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.goto('https://www.leboncoin.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+  await solveDataDomeCaptcha(page, 'https://www.leboncoin.fr');
 
-  console.log('[LeBonCoin] Browser opened on google.fr. Navigate to leboncoin.fr when ready.');
+  console.log('[LeBonCoin] Session warmed up. Chrome profile saved for next scrape.');
+  await browser.close();
+}
 
-  // Keep the session open for 10 minutes
-  const maxWait = 10 * 60 * 1000;
-  const start = Date.now();
+async function solveDataDomeCaptcha(page: any, pageUrl: string): Promise<boolean | null> {
+  const html = await page.content();
+  const isCaptcha =
+    html.includes('captcha-delivery') || html.includes('datadome') || html.includes('geo.captcha-delivery.com');
 
-  while (Date.now() - start < maxWait) {
-    await new Promise(r => setTimeout(r, 5000));
-    // Log current URL so we can see what the user is doing
-    try {
-      const url = page.url();
-      if (url.includes('leboncoin.fr') && !url.includes('captcha-delivery')) {
-        console.log(`[LeBonCoin] On leboncoin.fr — session looks good!`);
-      }
-    } catch {
-      // Page might be navigating
-    }
+  if (!isCaptcha) return null; // no captcha, continue
+
+  console.log('[LeBonCoin] DataDome captcha detected — solving via 2Captcha...');
+
+  const apiKey = process.env.TWOCAPTCHA_API_KEY;
+  if (!apiKey) {
+    console.error('[LeBonCoin] TWOCAPTCHA_API_KEY not set in .env');
+    return false;
   }
 
-  console.log('[LeBonCoin] 10 minute session ended. Chrome profile saved for next scrape.');
-  await browser.close();
-  stopVnc(vnc);
+  const solver = new Solver(apiKey);
+
+  // Extract the DataDome captcha URL from the page
+  const captchaUrl = await page.evaluate(() => {
+    // DataDome redirects to an iframe or geo.captcha-delivery.com
+    const iframe = document.querySelector('iframe[src*="captcha-delivery"]') as HTMLIFrameElement | null;
+    if (iframe) return iframe.src;
+    // Sometimes it's the current URL itself
+    if (window.location.href.includes('captcha-delivery')) return window.location.href;
+    return null;
+  });
+
+  if (!captchaUrl) {
+    console.log('[LeBonCoin] Could not find captcha URL in page');
+    return false;
+  }
+
+  console.log(`[LeBonCoin] Captcha URL: ${captchaUrl}`);
+
+  // Get DataDome cookie from browser
+  const cookies = await page.cookies();
+  const ddCookie = cookies.find((c: any) => c.name === 'datadome');
+  const userAgent = await page.evaluate(() => navigator.userAgent);
+
+  try {
+    // Format proxy from http://user:pass@host:port to user:pass@host:port
+    const rawProxy = process.env.PROXY_URL || '';
+    const proxy = rawProxy.replace(/^https?:\/\//, '');
+
+    const result = await solver.dataDome({
+      pageurl: pageUrl,
+      captcha_url: captchaUrl,
+      userAgent: userAgent,
+      proxy: proxy,
+      proxytype: 'http',
+    });
+
+    console.log('[LeBonCoin] 2Captcha solved! Applying cookie...');
+
+    // The response contains a cookie value to set
+    if (result.data) {
+      const cookieValue = result.data;
+      // Set the datadome cookie with the solved value
+      await page.setCookie({
+        name: 'datadome',
+        value: cookieValue,
+        domain: '.leboncoin.fr',
+        path: '/',
+      });
+
+      // Reload the page with the valid cookie
+      await randomDelay(1000, 2000);
+      await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+
+      // Verify captcha is gone
+      const stillCaptcha = await page.evaluate(() => {
+        return (
+          document.body.innerHTML.includes('captcha-delivery') ||
+          window.location.href.includes('captcha-delivery')
+        );
+      });
+
+      if (stillCaptcha) {
+        console.log('[LeBonCoin] Captcha still present after 2Captcha solve — retrying...');
+        return solveDataDomeCaptcha(page, pageUrl);
+      }
+
+      console.log('[LeBonCoin] Captcha solved successfully!');
+      return true;
+    }
+  } catch (err: any) {
+    console.error('[LeBonCoin] 2Captcha error:', err.message || err);
+    return false;
+  }
+
+  return false;
 }
 
 export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number> {
@@ -141,52 +183,20 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
   const searchUrl = buildSearchUrl(filters);
   console.log(`[LeBonCoin] Scraping: ${searchUrl}`);
 
-  // Use non-headless so VNC can show the browser if captcha appears
-  // No proxy for LeBonCoin — residential proxies get flagged by DataDome
-  const browser = await createStealthBrowser({ headless: false, useProxy: false });
+  // Use residential proxy to avoid datacenter IP bans
+  const browser = await createStealthBrowser({ headless: false, useProxy: true });
   let insertedCount = 0;
-  let vnc: ChildProcess | null = null;
 
   try {
     const page = await setupPage(browser);
     await randomDelay(2000, 4000);
     await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Check for captcha
-    const isCaptcha = await page.evaluate(() => {
-      return document.body.innerHTML.includes('captcha-delivery') || document.body.innerHTML.includes('datadome');
-    });
-    if (isCaptcha) {
-      console.log('[LeBonCoin] Captcha detected! Starting VNC on port 5900...');
-      console.log('[LeBonCoin] Connect via VNC to solve the captcha, then scraping will continue.');
-      vnc = startVnc();
-
-      // Wait up to 3 minutes for user to solve captcha
-      const maxWait = 3 * 60 * 1000;
-      const start = Date.now();
-      let solved = false;
-
-      while (Date.now() - start < maxWait) {
-        await new Promise(r => setTimeout(r, 3000));
-        const stillCaptcha = await page.evaluate(() => {
-          return document.body.innerHTML.includes('captcha-delivery') ||
-            window.location.href.includes('captcha-delivery');
-        });
-        if (!stillCaptcha) {
-          solved = true;
-          break;
-        }
-      }
-
-      if (!solved) {
-        console.log('[LeBonCoin] Captcha not solved in time. Aborting.');
-        stopVnc(vnc);
-        return 0;
-      }
-
-      console.log('[LeBonCoin] Captcha solved! Continuing scrape...');
-      // Navigate to search after captcha is solved
-      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    // Check for captcha and solve automatically via 2Captcha
+    const captchaResolved = await solveDataDomeCaptcha(page, searchUrl);
+    if (captchaResolved === false) {
+      console.log('[LeBonCoin] Could not solve captcha. Aborting.');
+      return 0;
     }
 
     // Accept cookies if present
@@ -228,43 +238,44 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
           description: string;
         }> = [];
 
-        // LeBonCoin uses <a> tags with data-test-id or class-based selectors for ad cards
-        // Try multiple selector strategies
-        const cards = document.querySelectorAll(
-          '[data-test-id="ad"], [data-qa-id="aditem_container"], a[href*="/ad/"], article'
-        );
+        // Each ad card is a [data-test-id="ad"] container
+        const cards = document.querySelectorAll('[data-test-id="ad"]');
 
         cards.forEach((card) => {
           try {
-            const link = card.closest('a') || card.querySelector('a');
+            // Link: <a aria-label="Voir l'annonce" href="/ad/locations/...">
+            const link = card.querySelector('a[aria-label="Voir l\'annonce"]') as HTMLAnchorElement | null;
             const href = link?.getAttribute('href') || '';
             if (!href || !href.includes('/ad/')) return;
 
-            const fullUrl = href.startsWith('http') ? href : `https://www.leboncoin.fr${href}`;
+            const fullUrl = `https://www.leboncoin.fr${href}`;
 
-            // Title
-            const titleEl = card.querySelector('[data-test-id="ad-subject"], h2, p[data-qa-id="aditem_title"], [class*="title"]');
-            const title = titleEl?.textContent?.trim() || '';
-
-            // Price
-            const priceEl = card.querySelector('[data-test-id="ad-price"], span[data-qa-id="aditem_price"], [class*="price"]');
+            // Price: <p data-test-id="price"><span>1 125&nbsp;€</span></p>
+            const priceEl = card.querySelector('[data-test-id="price"] span');
             const priceText = priceEl?.textContent?.trim() || '0';
             const price = parseInt(priceText.replace(/[^0-9]/g, ''), 10) || 0;
 
-            // City/location
-            const cityEl = card.querySelector('[data-test-id="ad-location"], p[data-qa-id="aditem_location"], [class*="location"]');
+            // Title/description: "Appartement · 2 pièces · 56m²" in <p class="text-body-2 font-bold">
+            const titleEl = card.querySelector('p.text-body-2.font-bold');
+            const title = titleEl?.textContent?.trim() || '';
+
+            // Location: <p aria-hidden="true"> inside [data-test-id="adcard-housing-location"]
+            const cityEl = card.querySelector('[data-test-id="adcard-housing-location"] p[aria-hidden="true"]');
             const cityText = cityEl?.textContent?.trim() || '';
 
-            // Image
-            const imgEl = card.querySelector('img');
-            const image = imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || '';
-
-            // Description snippet
-            const descEl = card.querySelector('[data-test-id="ad-description"], [class*="description"]');
-            const description = descEl?.textContent?.trim() || '';
+            // Image: first <img> with a real src (skip SVG data URIs)
+            const imgs = Array.from(card.querySelectorAll('img'));
+            let image = '';
+            for (const img of imgs) {
+              const src = img.getAttribute('src') || '';
+              if (src && !src.startsWith('data:')) {
+                image = src;
+                break;
+              }
+            }
 
             if (title || price) {
-              results.push({ title, price, city: cityText, url: fullUrl, image, description });
+              results.push({ title, price, city: cityText, url: fullUrl, image, description: title });
             }
           } catch {
             // skip malformed card
@@ -307,7 +318,6 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
     console.log(`[LeBonCoin] Total inserted: ${insertedCount} new listings`);
   } finally {
     await browser.close();
-    if (vnc) stopVnc(vnc);
   }
 
   return insertedCount;

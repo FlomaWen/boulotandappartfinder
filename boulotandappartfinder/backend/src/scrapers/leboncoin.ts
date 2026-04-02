@@ -89,42 +89,44 @@ function stopVnc(vnc: ChildProcess | null) {
 }
 
 /**
- * Opens a browser on leboncoin.fr so the user can solve the captcha manually via VNC.
+ * Opens a free browser session via VNC. The user can browse Google, log in,
+ * navigate to leboncoin.fr, solve captchas, etc. The Chrome profile is saved
+ * at data/chrome-profile and reused by subsequent scrapes.
+ * Session stays open for 10 minutes or until the user calls the close endpoint.
  */
 export async function solveLeboncoinCaptcha(): Promise<void> {
-  console.log('[LeBonCoin] Opening browser for manual captcha solving...');
-  console.log('[LeBonCoin] Connect via VNC on port 5900 to see the browser.');
+  console.log('[LeBonCoin] Opening free browser session via VNC...');
+  console.log('[LeBonCoin] Connect via VNC on port 5900.');
+  console.log('[LeBonCoin] Browse freely: Google, log in, then navigate to leboncoin.fr');
+  console.log('[LeBonCoin] Session will stay open for 10 minutes.');
 
   const vnc = startVnc();
-  const browser = await createStealthBrowser({ headless: false });
+  const browser = await createStealthBrowser({ headless: false, useProxy: false });
   const page = await setupPage(browser);
 
-  await page.goto('https://www.leboncoin.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+  // Start on Google so the user can browse naturally
+  await page.goto('https://www.google.fr', { waitUntil: 'networkidle2', timeout: 60000 });
 
-  console.log('[LeBonCoin] Browser opened. Solve the captcha via VNC if present.');
-  console.log('[LeBonCoin] Waiting up to 5 minutes...');
+  console.log('[LeBonCoin] Browser opened on google.fr. Navigate to leboncoin.fr when ready.');
 
-  const maxWait = 5 * 60 * 1000;
+  // Keep the session open for 10 minutes
+  const maxWait = 10 * 60 * 1000;
   const start = Date.now();
-  let solved = false;
 
   while (Date.now() - start < maxWait) {
-    const cookies = await page.cookies();
-    const dd = cookies.find(c => c.name === 'datadome');
-    const url = page.url();
-    if (dd && !url.includes('captcha-delivery.com')) {
-      solved = true;
-      break;
+    await new Promise(r => setTimeout(r, 5000));
+    // Log current URL so we can see what the user is doing
+    try {
+      const url = page.url();
+      if (url.includes('leboncoin.fr') && !url.includes('captcha-delivery')) {
+        console.log(`[LeBonCoin] On leboncoin.fr — session looks good!`);
+      }
+    } catch {
+      // Page might be navigating
     }
-    await new Promise(r => setTimeout(r, 2000));
   }
 
-  if (solved) {
-    console.log('[LeBonCoin] Session OK — captcha passed or not needed.');
-  } else {
-    console.log('[LeBonCoin] Timeout — captcha not solved in time.');
-  }
-
+  console.log('[LeBonCoin] 10 minute session ended. Chrome profile saved for next scrape.');
   await browser.close();
   stopVnc(vnc);
 }

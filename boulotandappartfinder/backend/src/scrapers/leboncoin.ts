@@ -262,6 +262,10 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
       fs.writeFileSync(path.join(debugDir, `leboncoin_debug_p${pageNum}.html`), html, 'utf-8');
       console.log(`[LeBonCoin] Page ${pageNum}: HTML size = ${html.length} chars`);
 
+      // Count cards before extraction for debugging
+      const cardCount = await page.evaluate(() => document.querySelectorAll('[data-test-id="ad"]').length);
+      console.log(`[LeBonCoin] Page ${pageNum}: ${cardCount} ad cards in DOM`);
+
       // Extract listings from the page
       const listings = await page.evaluate(() => {
         const results: Array<{
@@ -275,13 +279,15 @@ export async function scrapeLeboncoin(filters: LeboncoinFilters): Promise<number
 
         // Each ad card is a [data-test-id="ad"] container
         const cards = document.querySelectorAll('[data-test-id="ad"]');
+        console.log(`[DEBUG] Found ${cards.length} ad cards in DOM`);
 
         cards.forEach((card) => {
           try {
-            // Link: <a aria-label="Voir l'annonce" href="/ad/locations/...">
-            const link = card.querySelector('a[aria-label="Voir l\'annonce"]') as HTMLAnchorElement | null;
+            // Find the link to the ad — look for any <a> with href containing "/ad/"
+            const links = Array.from(card.querySelectorAll('a'));
+            const link = links.find(a => (a.getAttribute('href') || '').includes('/ad/'));
             const href = link?.getAttribute('href') || '';
-            if (!href || !href.includes('/ad/')) return;
+            if (!href) return;
 
             const fullUrl = `https://www.leboncoin.fr${href}`;
 

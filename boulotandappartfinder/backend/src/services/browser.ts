@@ -3,6 +3,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type {Browser, Page, PuppeteerLaunchOptions} from 'puppeteer';
 import { anonymizeProxy } from 'proxy-chain';
 import path from 'path';
+import fs from 'fs';
 
 // Apply stealth plugin
 puppeteer.use(StealthPlugin());
@@ -20,6 +21,12 @@ function getProxyUrl(): string | null {
 
 export async function createStealthBrowser(config: BrowserConfig = {}): Promise<Browser> {
   const { headless = true, useProxy = true } = config;
+
+  // Clean up stale Chrome profile locks from previous crashes
+  for (const lockFile of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    const lockPath = path.join(CHROME_PROFILE_DIR, lockFile);
+    try { fs.unlinkSync(lockPath); } catch {}
+  }
   const proxyUrl = useProxy ? getProxyUrl() : null;
 
   const args = [

@@ -89,6 +89,12 @@ export class JobSearch implements OnInit {
     });
   }
 
+  confirmDelete(job: Job): void {
+    if (confirm('Supprimer cette offre ?')) {
+      this.updateStatus(job, 'supprime');
+    }
+  }
+
   openUrl(url: string): void {
     window.open(url, '_blank');
   }

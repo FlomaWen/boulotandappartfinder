@@ -142,6 +142,12 @@ export class ApartmentSearch implements OnInit {
     });
   }
 
+  confirmDelete(apt: Apartment): void {
+    if (confirm('Supprimer cette annonce ?')) {
+      this.updateStatus(apt, 'supprime');
+    }
+  }
+
   openUrl(url: string): void {
     window.open(url, '_blank');
   }

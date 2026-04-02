@@ -145,13 +145,19 @@
                 <p class="salary">{{ job.salary || 'Non precise' }} <span>&euro;/an</span></p>
                 <div class="card-actions">
                   <button class="action-btn view" (click)="openUrl(job.url)">Voir</button>
+                  @if (job.status === 'postule') {
+                    <button class="action-btn undo" (click)="updateStatus(job, 'nouveau')">&#8592; Nouveau</button>
+                  }
+                  @if (job.status === 'entretien') {
+                    <button class="action-btn undo" (click)="updateStatus(job, 'postule')">&#8592; Postule</button>
+                  }
                   @if (job.status === 'nouveau') {
                     <button class="action-btn apply" (click)="updateStatus(job, 'postule')">Postule</button>
                   }
                   @if (job.status === 'postule') {
                     <button class="action-btn interview" (click)="updateStatus(job, 'entretien')">Entretien</button>
                   }
-                  <button class="action-btn delete" (click)="updateStatus(job, 'supprime')">&#10005;</button>
+                  <button class="action-btn delete" (click)="confirmDelete(job)">&#10005;</button>
                 </div>
               </div>
             </div>

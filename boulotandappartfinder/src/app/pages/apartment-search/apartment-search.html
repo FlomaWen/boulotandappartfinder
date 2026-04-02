@@ -132,13 +132,19 @@
               </div>
               <div class="card-actions">
                 <button class="action-btn view" (click)="openUrl(apt.url)">Voir l'annonce</button>
+                @if (apt.status === 'contacte') {
+                  <button class="action-btn undo" (click)="updateStatus(apt, 'nouveau')">&#8592; Nouveau</button>
+                }
+                @if (apt.status === 'visite') {
+                  <button class="action-btn undo" (click)="updateStatus(apt, 'contacte')">&#8592; Contacte</button>
+                }
                 @if (apt.status === 'nouveau') {
                   <button class="action-btn contact" (click)="updateStatus(apt, 'contacte')">Contacte</button>
                 }
                 @if (apt.status === 'contacte') {
                   <button class="action-btn visit" (click)="updateStatus(apt, 'visite')">Visite</button>
                 }
-                <button class="action-btn delete" (click)="updateStatus(apt, 'supprime')">&#10005;</button>
+                <button class="action-btn delete" (click)="confirmDelete(apt)">&#10005;</button>
               </div>
             </div>
           </div>

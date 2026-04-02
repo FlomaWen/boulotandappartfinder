@@ -394,6 +394,7 @@
   font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
 
   &.view { background: #f0f2f5; color: #333; &:hover { background: #e0e0e0; } }
+  &.undo { background: #e0e7ff; color: #3730a3; font-size: 0.75rem; &:hover { background: #c7d2fe; } }
   &.contact { background: #fef3c7; color: #92400e; &:hover { background: #fde68a; } }
   &.visit { background: #d1fae5; color: #065f46; &:hover { background: #a7f3d0; } }
   &.delete { background: #fee2e2; color: #dc2626; &:hover { background: #fecaca; } }

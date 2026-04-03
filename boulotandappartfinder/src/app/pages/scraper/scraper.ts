@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ApartmentService, ScrapeFilters } from '../../services/apartment.service';
@@ -145,6 +145,7 @@ export class Scraper implements OnInit {
     private apartmentService: ApartmentService,
     private jobService: JobService,
     private http: HttpClient,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -270,7 +271,14 @@ export class Scraper implements OnInit {
   // ─── Auto Searches ───
   loadAutoSearches(): void {
     this.http.get<AutoSearch[]>(`${this.apiUrl}/auto-searches`).subscribe({
-      next: (data) => { this.autoSearches = data; },
+      next: (data) => {
+        console.log('[Scraper] Loaded auto searches:', data);
+        this.autoSearches = data;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('[Scraper] Failed to load auto searches:', err);
+      },
     });
   }
 

@@ -1,0 +1,187 @@
+<div class="scraper-page">
+
+  <!-- Auto Scheduler Info -->
+  <section class="auto-section">
+    <div class="auto-header">
+      <div class="auto-indicator"></div>
+      <h2>Scraping automatique</h2>
+      <span class="auto-cron">{{ getCronLabel(schedulerCron) }}</span>
+    </div>
+    <div class="auto-filters">
+      @if (autoAptFilters) {
+        <div class="auto-card">
+          <span class="auto-label">Appartements</span>
+          <span class="auto-value">{{ autoAptFilters['city'] }}
+            @if (autoAptFilters['maxPrice']) { &middot; max {{ autoAptFilters['maxPrice'] }}&euro; }
+            @if (autoAptFilters['minSurface']) { &middot; {{ autoAptFilters['minSurface'] }}m&sup2;+ }
+            @if (autoAptFilters['minRooms']) { &middot; {{ autoAptFilters['minRooms'] }}p+ }
+          </span>
+        </div>
+      }
+      @if (autoJobFilters) {
+        <div class="auto-card">
+          <span class="auto-label">Emplois</span>
+          <span class="auto-value">{{ autoJobFilters.keyword }} &middot; {{ autoJobFilters.city }}</span>
+        </div>
+      }
+      @if (!autoAptFilters && !autoJobFilters) {
+        <p class="auto-empty">Aucune recherche sauvegardee. Lancez un scrape pour configurer.</p>
+      }
+    </div>
+  </section>
+
+  <div class="scraper-grid">
+
+    <!-- Apartment Scraper -->
+    <section class="scraper-card">
+      <h2>Appartements</h2>
+
+      <div class="scrape-form">
+        <label class="field-label">Ville</label>
+        <input type="text" placeholder="Bordeaux, Bordeaux 33300" [(ngModel)]="scrapeCity" name="scrapeCity" />
+
+        <label class="field-label">Type de bien</label>
+        <div class="type-checkboxes">
+          <label class="checkbox-option">
+            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.appartement" name="typeAppart" />
+            <span>Appartement</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.maison" name="typeMaison" />
+            <span>Maison</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.terrain" name="typeTerrain" />
+            <span>Terrain</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.parking" name="typeParking" />
+            <span>Parking</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" [(ngModel)]="scrapePropertyTypes.autre" name="typeAutre" />
+            <span>Autre</span>
+          </label>
+        </div>
+
+        <label class="field-label">Loyer</label>
+        <div class="dual-input">
+          <div class="input-with-unit">
+            <input type="number" placeholder="Min" [(ngModel)]="scrapeMinPrice" name="scrapeMinPrice" />
+            <span class="unit">&euro;</span>
+          </div>
+          <div class="input-with-unit">
+            <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxPrice" name="scrapeMaxPrice" />
+            <span class="unit">&euro;</span>
+          </div>
+        </div>
+
+        <label class="field-label">Pi&egrave;ces</label>
+        <div class="number-chips">
+          @for (n of roomOptions; track n) {
+            <button class="num-chip"
+                    [class.active-min]="scrapeMinRooms === n"
+                    [class.active-max]="scrapeMaxRooms === n"
+                    [class.in-range]="isRoomInRange(scrapeMinRooms, scrapeMaxRooms, n)"
+                    (click)="toggleRoom(scrapeMinRooms === null ? 'scrapeMinRooms' : (scrapeMaxRooms === null && n >= scrapeMinRooms ? 'scrapeMaxRooms' : 'scrapeMinRooms'), n)">
+              {{ n === 8 ? '8+' : n }}
+            </button>
+          }
+        </div>
+
+        <label class="field-label">Chambres</label>
+        <div class="number-chips">
+          @for (n of roomOptions; track n) {
+            <button class="num-chip"
+                    [class.active-min]="scrapeMinBedrooms === n"
+                    [class.active-max]="scrapeMaxBedrooms === n"
+                    [class.in-range]="isRoomInRange(scrapeMinBedrooms, scrapeMaxBedrooms, n)"
+                    (click)="toggleRoom(scrapeMinBedrooms === null ? 'scrapeMinBedrooms' : (scrapeMaxBedrooms === null && n >= scrapeMinBedrooms ? 'scrapeMaxBedrooms' : 'scrapeMinBedrooms'), n)">
+              {{ n === 8 ? '8+' : n }}
+            </button>
+          }
+        </div>
+
+        <label class="field-label">Surface habitable</label>
+        <div class="dual-input">
+          <div class="input-with-unit">
+            <input type="number" placeholder="Min" [(ngModel)]="scrapeMinSurface" name="scrapeMinSurface" />
+            <span class="unit">m&sup2;</span>
+          </div>
+          <div class="input-with-unit">
+            <input type="number" placeholder="Max" [(ngModel)]="scrapeMaxSurface" name="scrapeMaxSurface" />
+            <span class="unit">m&sup2;</span>
+          </div>
+        </div>
+
+        <label class="field-label">Meubl&eacute;</label>
+        <div class="select-wrapper">
+          <select [(ngModel)]="scrapeFurnished" name="scrapeFurnished">
+            <option value="">Tous</option>
+            <option value="meuble">Meubl&eacute;</option>
+            <option value="non_meuble">Non meubl&eacute;</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" (click)="scrapeApartments()" [disabled]="scrapingApartments()">
+          {{ scrapingApartments() ? 'Scraping...' : 'Lancer le scrape' }}
+        </button>
+      </div>
+
+      @if (recentAptSearches.length > 0) {
+        <div class="recent-searches">
+          <p class="recent-title">Recherches recentes</p>
+          @for (search of recentAptSearches; track search.date) {
+            <div class="recent-item" (click)="applyRecentAptSearch(search)">
+              <div class="recent-info">
+                <span class="recent-keyword">{{ search.city }}</span>
+                <span class="recent-details">{{ getSelectedTypes(search.propertyTypes) }}
+                  @if (search.minPrice || search.maxPrice) {
+                    &middot; {{ search.minPrice || '?' }}-{{ search.maxPrice || '?' }}&euro;
+                  }
+                  @if (search.minRooms || search.maxRooms) {
+                    &middot; {{ search.minRooms || '?' }}-{{ search.maxRooms || '?' }}p
+                  }
+                </span>
+              </div>
+              <button class="recent-remove" (click)="removeRecentAptSearch($index, $event)">&times;</button>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Job Scraper -->
+    <section class="scraper-card">
+      <h2>Emplois</h2>
+
+      <div class="scrape-form">
+        <label class="field-label">Poste</label>
+        <input type="text" placeholder="Developpeur, Designer..." [(ngModel)]="scrapeKeyword" name="scrapeKeyword" />
+
+        <label class="field-label">Ville</label>
+        <input type="text" placeholder="Bordeaux" [(ngModel)]="scrapeJobCity" name="scrapeJobCity" />
+
+        <button class="btn btn-primary" (click)="scrapeJobs()" [disabled]="scrapingJobs()">
+          {{ scrapingJobs() ? 'Scraping...' : 'Lancer le scrape' }}
+        </button>
+      </div>
+
+      @if (recentJobSearches.length > 0) {
+        <div class="recent-searches">
+          <p class="recent-title">Recherches recentes</p>
+          @for (search of recentJobSearches; track search.date) {
+            <div class="recent-item" (click)="applyRecentJobSearch(search)">
+              <div class="recent-info">
+                <span class="recent-keyword">{{ search.keyword }}</span>
+                <span class="recent-details">{{ search.city }}</span>
+              </div>
+              <button class="recent-remove" (click)="removeRecentJobSearch($index, $event)">&times;</button>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+  </div>
+</div>

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
 *,
 *::before,
 *::after {
@@ -7,99 +9,116 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #f7f8fa;
-  color: #333;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0A0A0A;
+  color: #F5F5F5;
   min-height: 100vh;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
 }
 
-// Shared card & form styles
+// ─── Shared ───
 .search-section {
-  margin-bottom: 2rem;
+  margin-bottom: 32px;
 
   h1 {
-    font-size: 1.8rem;
-    margin-bottom: 0.5rem;
-    color: #1a1a2e;
+    font-size: 28px;
+    font-weight: 500;
+    color: #F5F5F5;
+    line-height: 1.1;
+    margin-bottom: 8px;
   }
 
   p.subtitle {
-    color: #666;
-    margin-bottom: 1.5rem;
+    color: #6B6B6B;
+    font-size: 13px;
+    margin-bottom: 24px;
   }
 }
 
 .search-form {
-  background: #fff;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2rem;
+  background: #111111;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  padding: 24px;
+  margin-bottom: 32px;
 
   .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 16px;
+    margin-bottom: 16px;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 8px;
 
     label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #555;
+      font-size: 11px;
+      font-weight: 500;
+      color: #6B6B6B;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'DM Mono', monospace;
     }
 
     input,
     select {
-      padding: 0.6rem 0.8rem;
-      border: 1.5px solid #ddd;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      transition: border-color 0.2s;
+      padding: 8px 16px;
+      border: 1px solid #2A2A2A;
+      border-radius: 2px;
+      font-size: 13px;
+      background: #1A1A1A;
+      color: #F5F5F5;
+      transition: border-color 200ms ease-out;
 
       &:focus {
         outline: none;
-        border-color: #10b981;
+        border-color: #FF3C3C;
       }
     }
   }
 
   .form-actions {
     display: flex;
-    gap: 1rem;
+    gap: 16px;
     justify-content: flex-end;
   }
 }
 
 .btn {
-  padding: 0.6rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 8px 24px;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 200ms ease-out;
+  font-family: 'Inter', sans-serif;
+  background: transparent;
+  color: #F5F5F5;
 
   &-primary {
-    background: #10b981;
-    color: #fff;
+    background: #FF3C3C;
+    border-color: #FF3C3C;
+    color: #0A0A0A;
 
     &:hover {
-      background: #059669;
+      background: #e63535;
+      border-color: #e63535;
     }
   }
 
   &-secondary {
-    background: #eee;
-    color: #555;
+    background: transparent;
+    border-color: #2A2A2A;
+    color: #6B6B6B;
 
     &:hover {
-      background: #ddd;
+      border-color: #F5F5F5;
+      color: #F5F5F5;
     }
   }
 }
@@ -107,59 +126,65 @@ body {
 .results-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1.5rem;
+  gap: 24px;
 }
 
 .result-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
+  background: #111111;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  padding: 24px;
+  transition: border-color 200ms ease-out;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    border-color: #333333;
   }
 
   h3 {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    color: #1a1a2e;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #F5F5F5;
   }
 
   .card-detail {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.3rem;
+    font-size: 13px;
+    color: #6B6B6B;
+    margin-bottom: 4px;
 
     strong {
-      color: #444;
+      color: #F5F5F5;
     }
   }
 
   .card-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-top: 0.8rem;
+    gap: 8px;
+    margin-top: 16px;
   }
 
   .tag {
-    padding: 0.2rem 0.6rem;
-    background: #f0f2f5;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    color: #555;
+    padding: 4px 8px;
+    background: #1A1A1A;
+    border: 1px solid #2A2A2A;
+    border-radius: 2px;
+    font-size: 11px;
+    color: #6B6B6B;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 }
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
-  color: #999;
+  padding: 48px;
+  color: #6B6B6B;
 
   h3 {
-    margin-bottom: 0.5rem;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
   }
 }

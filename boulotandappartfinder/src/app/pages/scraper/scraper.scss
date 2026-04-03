@@ -1,0 +1,336 @@
+:host {
+  display: block;
+}
+
+.scraper-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+// ─── Auto Scheduler Section ───
+.auto-section {
+  background: #111111;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.auto-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 15px;
+    font-weight: 500;
+    color: #F5F5F5;
+    margin: 0;
+  }
+}
+
+.auto-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3CFF8F;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.auto-cron {
+  font-size: 11px;
+  color: #6B6B6B;
+  background: #1A1A1A;
+  padding: 4px 8px;
+  border-radius: 2px;
+  border: 1px solid #2A2A2A;
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auto-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auto-card {
+  flex: 1;
+  min-width: 200px;
+  background: #1A1A1A;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  padding: 12px 16px;
+}
+
+.auto-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B6B6B;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 4px;
+}
+
+.auto-value {
+  font-size: 13px;
+  color: #F5F5F5;
+}
+
+.auto-empty {
+  font-size: 13px;
+  color: #333333;
+}
+
+// ─── Grid ───
+.scraper-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+// ─── Scraper Card ───
+.scraper-card {
+  background: #111111;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  padding: 24px;
+  border-top: 2px solid #FF3C3C;
+
+  h2 {
+    font-size: 15px;
+    font-weight: 500;
+    color: #F5F5F5;
+    margin: 0 0 20px;
+  }
+}
+
+// ─── Forms ───
+.scrape-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  input[type='text'],
+  input[type='number'] {
+    padding: 8px 16px;
+    border: 1px solid #2A2A2A;
+    border-radius: 2px;
+    font-size: 13px;
+    background: #0A0A0A;
+    color: #F5F5F5;
+    &:focus { outline: none; border-color: #FF3C3C; }
+  }
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B6B6B;
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Mono', monospace;
+}
+
+.type-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #6B6B6B;
+
+  input[type='checkbox'] {
+    accent-color: #FF3C3C;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.dual-input {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-unit {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #0A0A0A;
+
+  input {
+    flex: 1;
+    border: none;
+    padding: 8px;
+    font-size: 13px;
+    min-width: 0;
+    background: transparent;
+    color: #F5F5F5;
+    &:focus { outline: none; }
+  }
+
+  .unit {
+    padding: 0 8px;
+    font-size: 11px;
+    color: #6B6B6B;
+    background: #1A1A1A;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    border-left: 1px solid #2A2A2A;
+    font-family: 'DM Mono', monospace;
+  }
+
+  &:focus-within {
+    border-color: #FF3C3C;
+  }
+}
+
+.number-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.num-chip {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease-out;
+  color: #6B6B6B;
+  font-family: 'DM Mono', monospace;
+
+  &:hover { border-color: #FF3C3C; color: #FF3C3C; }
+  &.active-min, &.active-max { background: #FF3C3C; color: #0A0A0A; border-color: #FF3C3C; }
+  &.in-range { background: rgba(255, 60, 60, 0.15); border-color: #FF3C3C; color: #FF3C3C; }
+}
+
+.select-wrapper {
+  position: relative;
+  select {
+    width: 100%; padding: 8px 16px; border: 1px solid #2A2A2A;
+    border-radius: 2px; font-size: 13px; background: #0A0A0A;
+    appearance: none; cursor: pointer; color: #F5F5F5;
+    &:focus { outline: none; border-color: #FF3C3C; }
+  }
+  &::after {
+    content: '▾'; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%); pointer-events: none; color: #6B6B6B;
+  }
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: all 150ms ease-out;
+  margin-top: 8px;
+}
+
+.btn-primary {
+  background: #FF3C3C;
+  color: #0A0A0A;
+  &:hover { opacity: 0.85; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ─── Recent Searches ───
+.recent-searches {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #2A2A2A;
+}
+
+.recent-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: #333333;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Mono', monospace;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  margin-bottom: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 150ms ease-out;
+
+  &:hover { background: #1A1A1A; }
+}
+
+.recent-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recent-keyword {
+  font-size: 13px;
+  font-weight: 500;
+  color: #F5F5F5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-details {
+  font-size: 11px;
+  color: #6B6B6B;
+}
+
+.recent-remove {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: #333333;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+
+  &:hover { color: #FF3C3C; }
+}
+
+@media (max-width: 768px) {
+  .scraper-grid {
+    grid-template-columns: 1fr;
+  }
+}

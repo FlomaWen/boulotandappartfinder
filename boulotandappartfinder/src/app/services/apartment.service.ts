@@ -19,7 +19,7 @@ export interface Apartment {
   source: string;
   status: 'nouveau' | 'contacte' | 'visite' | 'supprime';
   rating?: number;
-  favorite?: boolean;
+  favorite: number;
   latitude: number | null;
   longitude: number | null;
   created_at: string;
@@ -79,6 +79,13 @@ export class ApartmentService {
 
   delete(id: number): Observable<{ deleted: boolean }> {
     return this.http.delete<{ deleted: boolean }>(`${this.apiUrl}/apartments/${id}`);
+  }
+
+  toggleFavorite(id: number): Observable<{ id: number; favorite: number }> {
+    return this.http.patch<{ id: number; favorite: number }>(
+      `${this.apiUrl}/apartments/${id}/favorite`,
+      {}
+    );
   }
 
   scrape(filters: ScrapeFilters): Observable<{ message: string; count: number }> {

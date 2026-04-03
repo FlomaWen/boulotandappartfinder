@@ -17,6 +17,7 @@ export interface Job {
   url: string;
   source: string;
   status: 'nouveau' | 'postule' | 'entretien' | 'supprime';
+  favorite: number;
   color: string;
   latitude: number | null;
   longitude: number | null;
@@ -61,6 +62,13 @@ export class JobService {
 
   delete(id: number): Observable<{ deleted: boolean }> {
     return this.http.delete<{ deleted: boolean }>(`${this.apiUrl}/jobs/${id}`);
+  }
+
+  toggleFavorite(id: number): Observable<{ id: number; favorite: number }> {
+    return this.http.patch<{ id: number; favorite: number }>(
+      `${this.apiUrl}/jobs/${id}/favorite`,
+      {}
+    );
   }
 
   scrape(keyword: string, city: string): Observable<{ message: string; count: number }> {

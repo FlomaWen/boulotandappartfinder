@@ -1,0 +1,88 @@
+<div class="favorites-page">
+  <div class="page-header">
+    <h1>Favoris</h1>
+    <div class="tabs">
+      <button class="tab" [class.active]="activeTab === 'apartments'" (click)="activeTab = 'apartments'">
+        Appartements <span class="tab-count">{{ apartments().length }}</span>
+      </button>
+      <button class="tab" [class.active]="activeTab === 'jobs'" (click)="activeTab = 'jobs'">
+        Emplois <span class="tab-count">{{ jobs().length }}</span>
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="empty-state"><p>Chargement...</p></div>
+  } @else if (activeTab === 'apartments') {
+    @if (apartments().length > 0) {
+      <div class="cards-grid">
+        @for (apt of apartments(); track apt.id) {
+          <div class="apt-card">
+            <div class="card-image">
+              @if (apt.image) {
+                <img [src]="apt.image" [alt]="apt.title" loading="lazy" />
+              } @else {
+                <div class="no-image">&#127968;</div>
+              }
+              <button class="favorite-btn active" (click)="removeFavorite(apt)">&#9829;</button>
+            </div>
+            <div class="card-body">
+              <h3>{{ apt.title }}</h3>
+              <p class="card-address">&#128205; {{ apt.address || apt.city }}</p>
+              <div class="card-features">
+                @if (apt.rooms) { <span>{{ apt.rooms }} p.</span> }
+                @if (apt.surface) { <span>{{ apt.surface }} m&sup2;</span> }
+              </div>
+              <div class="card-footer">
+                <p class="card-price">{{ apt.price }} &euro;<span>/mois</span></p>
+                <button class="action-btn view" (click)="openUrl(apt.url)">Voir</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <h3>Aucun appartement en favoris</h3>
+        <p>Ajoutez des appartements en favoris depuis la page Appartements.</p>
+      </div>
+    }
+  } @else {
+    @if (jobs().length > 0) {
+      <div class="jobs-list">
+        @for (job of jobs(); track job.id) {
+          <div class="job-card">
+            <div class="card-accent" [style.background]="job.color"></div>
+            <div class="card-content">
+              <div class="card-top">
+                <div class="company-avatar" [style.background]="job.color + '15'" [style.color]="job.color">
+                  {{ getInitials(job.company) }}
+                </div>
+                <div class="card-info">
+                  <h3>{{ job.title }}</h3>
+                  <p class="company-name">{{ job.company }}</p>
+                </div>
+                <div class="card-top-right">
+                  <button class="favorite-btn active" (click)="removeJobFavorite(job)">&#9829;</button>
+                  <span class="source-badge">{{ job.source }}</span>
+                </div>
+              </div>
+              <div class="card-meta">
+                <span class="meta-item">&#128205; {{ job.city }}</span>
+                @if (job.salary) { <span class="meta-item">{{ job.salary }}</span> }
+              </div>
+              <div class="card-footer">
+                <button class="action-btn view" (click)="openUrl(job.url)">Voir l'offre</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <h3>Aucun emploi en favoris</h3>
+        <p>Ajoutez des offres en favoris depuis la page Emplois.</p>
+      </div>
+    }
+  }
+</div>

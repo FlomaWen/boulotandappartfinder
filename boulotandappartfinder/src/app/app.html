@@ -1,11 +1,29 @@
-<nav class="navbar">
-  <a routerLink="/" class="navbar-brand">
-    <span class="brand-icon">&#9679;</span>
-    BoulotAndAppart
+<nav class="sidenav">
+  <a routerLink="/" class="nav-brand">
+    <span class="brand-dot"></span>
+    <span class="brand-text">B&A</span>
   </a>
-  <div class="navbar-links">
-    <a routerLink="/appartements" routerLinkActive="active">Appartements</a>
-    <a routerLink="/emplois" routerLinkActive="active">Emplois CDI</a>
+  <div class="nav-links">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link" title="Accueil">
+      <span class="nav-icon">&#9679;</span>
+      <span class="nav-label">Accueil</span>
+    </a>
+    <a routerLink="/appartements" routerLinkActive="active" class="nav-link" title="Appartements">
+      <span class="nav-icon">&#8962;</span>
+      <span class="nav-label">Apparts</span>
+    </a>
+    <a routerLink="/emplois" routerLinkActive="active" class="nav-link" title="Emplois">
+      <span class="nav-icon">&#9998;</span>
+      <span class="nav-label">Emplois</span>
+    </a>
+    <a routerLink="/scraper" routerLinkActive="active" class="nav-link" title="Scraper">
+      <span class="nav-icon">&#9881;</span>
+      <span class="nav-label">Scraper</span>
+    </a>
+    <a routerLink="/favoris" routerLinkActive="active" class="nav-link" title="Favoris">
+      <span class="nav-icon">&#9829;</span>
+      <span class="nav-label">Favoris</span>
+    </a>
   </div>
 </nav>
 

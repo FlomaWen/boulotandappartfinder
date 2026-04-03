@@ -86,6 +86,19 @@ router.patch('/:id/status', (req: Request, res: Response) => {
   res.json({ id: Number(req.params.id), status });
 });
 
+// PATCH /api/jobs/:id/favorite — toggle favorite
+router.patch('/:id/favorite', (req: Request, res: Response) => {
+  const db = getDb();
+  const row = db.prepare('SELECT favorite FROM jobs WHERE id = ?').get(req.params.id) as { favorite: number } | undefined;
+  if (!row) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  const newFav = row.favorite ? 0 : 1;
+  db.prepare("UPDATE jobs SET favorite = ?, updated_at = datetime('now') WHERE id = ?").run(newFav, req.params.id);
+  res.json({ id: Number(req.params.id), favorite: newFav });
+});
+
 // DELETE /api/jobs/:id
 router.delete('/:id', (req: Request, res: Response) => {
   const db = getDb();

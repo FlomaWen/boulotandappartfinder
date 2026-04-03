@@ -65,5 +65,15 @@ function initTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_apartments_city ON apartments(city);
     CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
     CREATE INDEX IF NOT EXISTS idx_jobs_city ON jobs(city);
+
+    CREATE TABLE IF NOT EXISTS last_search_filters (
+      id TEXT PRIMARY KEY,
+      filters TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  // Add favorite column if missing (migration-safe)
+  try { db.exec('ALTER TABLE apartments ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE jobs ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0'); } catch {}
 }

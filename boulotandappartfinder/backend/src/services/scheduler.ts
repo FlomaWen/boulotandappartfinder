@@ -4,6 +4,7 @@ import { scrapeSeloger } from '../scrapers/seloger';
 import { scrapeHellowork } from '../scrapers/hellowork';
 import { scrapeMeteojob } from '../scrapers/meteojob';
 import { scrapeWelcometothejungle } from '../scrapers/welcometothejungle';
+import { getLastFilters } from '../routes/scrape';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 
@@ -30,12 +31,13 @@ async function runScheduledScrape(config: SchedulerConfig): Promise<void> {
   console.log(`[Scheduler] Config:`, JSON.stringify(config));
 
   try {
-    // Scrape apartments
+    // Scrape apartments — use last manual search filters if available
     console.log('[Scheduler] Scraping apartments...');
-    const apartmentFilters = {
-      city: config.apartmentCity,
-      maxPrice: config.apartmentMaxPrice,
-    };
+    const savedAptFilters = getLastFilters('apartments');
+    const apartmentFilters = savedAptFilters
+      ? savedAptFilters as { city: string; maxPrice?: number; [key: string]: unknown }
+      : { city: config.apartmentCity, maxPrice: config.apartmentMaxPrice };
+    console.log(`[Scheduler] Using apartment filters: ${JSON.stringify(apartmentFilters)}`);
 
     let totalApartments = 0;
     try {
@@ -59,12 +61,16 @@ async function runScheduledScrape(config: SchedulerConfig): Promise<void> {
 
     await new Promise(r => setTimeout(r, 30000));
 
-    // Scrape jobs
+    // Scrape jobs — use last manual search filters if available
     console.log('[Scheduler] Scraping jobs...');
+    const savedJobFilters = getLastFilters('jobs') as { keyword: string; city: string } | null;
+    const jobKeyword = savedJobFilters?.keyword || config.jobKeyword;
+    const jobCity = savedJobFilters?.city || config.jobCity;
+    console.log(`[Scheduler] Using job filters: keyword=${jobKeyword}, city=${jobCity}`);
     let totalJobs = 0;
 
     try {
-      const hwCount = await scrapeHellowork(config.jobKeyword, config.jobCity);
+      const hwCount = await scrapeHellowork(jobKeyword, jobCity);
       console.log(`[Scheduler] HelloWork: ${hwCount} new jobs`);
       totalJobs += hwCount;
     } catch (err) {
@@ -74,7 +80,7 @@ async function runScheduledScrape(config: SchedulerConfig): Promise<void> {
     await new Promise(r => setTimeout(r, 10000));
 
     try {
-      const mjCount = await scrapeMeteojob(config.jobKeyword, config.jobCity);
+      const mjCount = await scrapeMeteojob(jobKeyword, jobCity);
       console.log(`[Scheduler] Meteojob: ${mjCount} new jobs`);
       totalJobs += mjCount;
     } catch (err) {
@@ -84,7 +90,7 @@ async function runScheduledScrape(config: SchedulerConfig): Promise<void> {
     await new Promise(r => setTimeout(r, 30000));
 
     try {
-      const wttjCount = await scrapeWelcometothejungle(config.jobKeyword, config.jobCity);
+      const wttjCount = await scrapeWelcometothejungle(jobKeyword, jobCity);
       console.log(`[Scheduler] WTTJ: ${wttjCount} new jobs`);
       totalJobs += wttjCount;
     } catch (err) {

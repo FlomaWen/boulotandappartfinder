@@ -11,15 +11,6 @@ interface Filters {
   experience: string;
 }
 
-interface RecentJobSearch {
-  keyword: string;
-  city: string;
-  date: string;
-}
-
-const RECENT_JOB_SEARCHES_KEY = 'recentJobSearches';
-const MAX_RECENT_SEARCHES = 5;
-
 @Component({
   selector: 'app-job-search',
   imports: [FormsModule],
@@ -39,17 +30,10 @@ export class JobSearch implements OnInit {
   readonly results = signal<Job[]>([]);
   readonly totalCount = signal(0);
   readonly loading = signal(false);
-  readonly scraping = signal(false);
-
-  scrapeKeyword = '';
-  scrapeCity = '';
-
-  recentSearches: RecentJobSearch[] = [];
 
   constructor(private jobService: JobService) {}
 
   ngOnInit(): void {
-    this.loadRecentSearches();
     this.loadJobs();
   }
 
@@ -89,6 +73,14 @@ export class JobSearch implements OnInit {
     });
   }
 
+  toggleFavorite(job: Job): void {
+    this.jobService.toggleFavorite(job.id).subscribe((res) => {
+      this.results.update((list) =>
+        list.map((j) => (j.id === job.id ? { ...j, favorite: res.favorite } : j))
+      );
+    });
+  }
+
   confirmDelete(job: Job): void {
     if (confirm('Supprimer cette offre ?')) {
       this.updateStatus(job, 'supprime');
@@ -115,58 +107,6 @@ export class JobSearch implements OnInit {
     if (days === 0) return "Aujourd'hui";
     if (days === 1) return 'Hier';
     return `Il y a ${days}j`;
-  }
-
-  scrapeJobs(): void {
-    if (!this.scrapeKeyword || !this.scrapeCity) return;
-    this.scraping.set(true);
-    this.jobService.scrape(this.scrapeKeyword, this.scrapeCity).subscribe({
-      next: (res) => {
-        this.scraping.set(false);
-        this.saveRecentSearch(this.scrapeKeyword, this.scrapeCity);
-        this.loadJobs();
-        alert(`${res.count} nouvelles offres importees !`);
-      },
-      error: (err) => {
-        this.scraping.set(false);
-        alert('Erreur de scraping: ' + (err.error?.details || err.message));
-      },
-    });
-  }
-
-  loadRecentSearches(): void {
-    try {
-      const stored = localStorage.getItem(RECENT_JOB_SEARCHES_KEY);
-      this.recentSearches = stored ? JSON.parse(stored) : [];
-    } catch {
-      this.recentSearches = [];
-    }
-  }
-
-  saveRecentSearch(keyword: string, city: string): void {
-    const search: RecentJobSearch = {
-      keyword,
-      city,
-      date: new Date().toISOString(),
-    };
-    // Remove duplicate if exists
-    this.recentSearches = this.recentSearches.filter(
-      (s) => !(s.keyword.toLowerCase() === keyword.toLowerCase() && s.city.toLowerCase() === city.toLowerCase())
-    );
-    this.recentSearches.unshift(search);
-    this.recentSearches = this.recentSearches.slice(0, MAX_RECENT_SEARCHES);
-    localStorage.setItem(RECENT_JOB_SEARCHES_KEY, JSON.stringify(this.recentSearches));
-  }
-
-  applyRecentSearch(search: RecentJobSearch): void {
-    this.scrapeKeyword = search.keyword;
-    this.scrapeCity = search.city;
-  }
-
-  removeRecentSearch(index: number, event: Event): void {
-    event.stopPropagation();
-    this.recentSearches.splice(index, 1);
-    localStorage.setItem(RECENT_JOB_SEARCHES_KEY, JSON.stringify(this.recentSearches));
   }
 
   reset(): void {

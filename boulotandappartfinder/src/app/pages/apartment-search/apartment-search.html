@@ -49,14 +49,15 @@
       </label>
 
       @if (filters.priceRange === 'custom') {
-        <div class="range-slider">
-          <div class="range-values">
-            <span>{{ filters.minPrice }} &euro;</span>
-            <span>{{ filters.maxPrice }} &euro;</span>
-          </div>
-          <div class="range-inputs">
+        <div class="price-slider">
+          <span class="price-value">{{ filters.minPrice }} - {{ filters.maxPrice }} &euro;/mois</span>
+          <div class="slider-row">
             <input type="range" min="200" max="2000" step="50" [(ngModel)]="filters.minPrice" name="minPrice" (ngModelChange)="onFilterChange()" />
             <input type="range" min="200" max="2000" step="50" [(ngModel)]="filters.maxPrice" name="maxPrice" (ngModelChange)="onFilterChange()" />
+          </div>
+          <div class="price-range-labels">
+            <span>200 &euro;</span>
+            <span>2000 &euro;</span>
           </div>
         </div>
       }

@@ -150,6 +150,6 @@ export function getSchedulerStatus(): { running: boolean; cron: string } {
   };
 }
 
-export async function triggerScrapeNow(): Promise<void> {
+export async function triggerScrapeNow(_config?: SchedulerConfig): Promise<void> {
   await runScheduledScrape();
 }

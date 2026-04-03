@@ -1,33 +1,44 @@
 <div class="scraper-page">
 
-  <!-- Auto Scheduler Info -->
+  <!-- Auto Searches Section -->
   <section class="auto-section">
     <div class="auto-header">
-      <div class="auto-indicator"></div>
-      <h2>Scraping automatique</h2>
-      <span class="auto-cron">{{ getCronLabel(schedulerCron) }}</span>
+      <div class="auto-header-left">
+        <div class="auto-indicator"></div>
+        <h2>Recherches automatiques</h2>
+        <span class="auto-cron">{{ getCronLabel(schedulerCron) }}</span>
+      </div>
+      <button class="btn-add" (click)="openModal('apartments')">+ Ajouter</button>
     </div>
-    <div class="auto-filters">
-      @if (autoAptFilters) {
-        <div class="auto-card">
-          <span class="auto-label">Appartements</span>
-          <span class="auto-value">{{ autoAptFilters['city'] }}
-            @if (autoAptFilters['maxPrice']) { &middot; max {{ autoAptFilters['maxPrice'] }}&euro; }
-            @if (autoAptFilters['minSurface']) { &middot; {{ autoAptFilters['minSurface'] }}m&sup2;+ }
-            @if (autoAptFilters['minRooms']) { &middot; {{ autoAptFilters['minRooms'] }}p+ }
-          </span>
-        </div>
-      }
-      @if (autoJobFilters) {
-        <div class="auto-card">
-          <span class="auto-label">Emplois</span>
-          <span class="auto-value">{{ autoJobFilters.keyword }} &middot; {{ autoJobFilters.city }}</span>
-        </div>
-      }
-      @if (!autoAptFilters && !autoJobFilters) {
-        <p class="auto-empty">Aucune recherche sauvegardee. Lancez un scrape pour configurer.</p>
-      }
-    </div>
+
+    @if (autoSearches.length > 0) {
+      <div class="auto-list">
+        @for (search of autoSearches; track search.id) {
+          <div class="auto-item" [class.inactive]="!search.active">
+            <div class="auto-item-left">
+              <button class="toggle-btn" [class.active]="search.active" (click)="toggleAutoSearch(search)">
+                <span class="toggle-dot"></span>
+              </button>
+              <div class="auto-item-info">
+                <span class="auto-item-name">{{ search.name }}</span>
+                <span class="auto-item-type">{{ search.type === 'apartments' ? 'Appartements' : 'Emplois' }}</span>
+                <span class="auto-item-details">{{ getAutoSearchLabel(search) }}</span>
+              </div>
+            </div>
+            <button class="delete-btn" (click)="deleteAutoSearch(search)">&times;</button>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="auto-empty">Aucune recherche automatique. Cliquez sur "+ Ajouter" pour en creer une.</p>
+    }
+
+    @if (autoSearches.length > 0) {
+      <div class="auto-add-more">
+        <button class="btn-add-small" (click)="openModal('apartments')">+ Appartements</button>
+        <button class="btn-add-small" (click)="openModal('jobs')">+ Emplois</button>
+      </div>
+    }
   </section>
 
   <div class="scraper-grid">
@@ -37,8 +48,32 @@
       <h2>Appartements</h2>
 
       <div class="scrape-form">
-        <label class="field-label">Ville</label>
-        <input type="text" placeholder="Bordeaux, Bordeaux 33300" [(ngModel)]="scrapeCity" name="scrapeCity" />
+        <label class="field-label">Villes</label>
+        <div class="city-autocomplete">
+          @if (scrapeCities.length > 0) {
+            <div class="city-chips">
+              @for (city of scrapeCities; track city) {
+                <span class="city-chip">{{ city }} <button (click)="removeScrapeCity(city)">&times;</button></span>
+              }
+            </div>
+          }
+          <div class="autocomplete-wrapper">
+            <input type="text"
+                   placeholder="Rechercher une ville..."
+                   [(ngModel)]="scrapeCityInput"
+                   name="scrapeCityInput"
+                   (input)="onScrapeCityInput()"
+                   (blur)="hideSuggestions('scrapeCity')"
+                   autocomplete="off" />
+            @if (showScrapeCitySuggestions) {
+              <div class="suggestions-dropdown">
+                @for (s of scrapeCitySuggestions; track s.label) {
+                  <button class="suggestion-item" (mousedown)="selectScrapeCity(s)">{{ s.label }}</button>
+                }
+              </div>
+            }
+          </div>
+        </div>
 
         <label class="field-label">Type de bien</label>
         <div class="type-checkboxes">
@@ -123,7 +158,7 @@
           </select>
         </div>
 
-        <button class="btn btn-primary" (click)="scrapeApartments()" [disabled]="scrapingApartments()">
+        <button class="btn btn-primary" (click)="scrapeApartments()" [disabled]="scrapingApartments() || scrapeCities.length === 0">
           {{ scrapingApartments() ? 'Scraping...' : 'Lancer le scrape' }}
         </button>
       </div>
@@ -159,10 +194,34 @@
         <label class="field-label">Poste</label>
         <input type="text" placeholder="Developpeur, Designer..." [(ngModel)]="scrapeKeyword" name="scrapeKeyword" />
 
-        <label class="field-label">Ville</label>
-        <input type="text" placeholder="Bordeaux" [(ngModel)]="scrapeJobCity" name="scrapeJobCity" />
+        <label class="field-label">Villes</label>
+        <div class="city-autocomplete">
+          @if (scrapeJobCities.length > 0) {
+            <div class="city-chips">
+              @for (city of scrapeJobCities; track city) {
+                <span class="city-chip">{{ city }} <button (click)="removeScrapeJobCity(city)">&times;</button></span>
+              }
+            </div>
+          }
+          <div class="autocomplete-wrapper">
+            <input type="text"
+                   placeholder="Rechercher une ville..."
+                   [(ngModel)]="scrapeJobCityInput"
+                   name="scrapeJobCityInput"
+                   (input)="onScrapeJobCityInput()"
+                   (blur)="hideSuggestions('scrapeJobCity')"
+                   autocomplete="off" />
+            @if (showScrapeJobCitySuggestions) {
+              <div class="suggestions-dropdown">
+                @for (s of scrapeJobCitySuggestions; track s.label) {
+                  <button class="suggestion-item" (mousedown)="selectScrapeJobCity(s)">{{ s.label }}</button>
+                }
+              </div>
+            }
+          </div>
+        </div>
 
-        <button class="btn btn-primary" (click)="scrapeJobs()" [disabled]="scrapingJobs()">
+        <button class="btn btn-primary" (click)="scrapeJobs()" [disabled]="scrapingJobs() || !scrapeKeyword || scrapeJobCities.length === 0">
           {{ scrapingJobs() ? 'Scraping...' : 'Lancer le scrape' }}
         </button>
       </div>
@@ -185,3 +244,173 @@
 
   </div>
 </div>
+
+<!-- Modal Overlay -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Ajouter une recherche automatique</h2>
+        <button class="modal-close" (click)="closeModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Type switcher -->
+        <div class="modal-tabs">
+          <button class="modal-tab" [class.active]="modalType === 'apartments'" (click)="modalType = 'apartments'">Appartements</button>
+          <button class="modal-tab" [class.active]="modalType === 'jobs'" (click)="modalType = 'jobs'">Emplois</button>
+        </div>
+
+        <label class="field-label">Nom de la recherche</label>
+        <input type="text" placeholder="Ex: Bordeaux T3" [(ngModel)]="modalName" name="modalName" />
+
+        @if (modalType === 'apartments') {
+          <label class="field-label">Villes *</label>
+          <div class="city-autocomplete">
+            @if (modalCities.length > 0) {
+              <div class="city-chips">
+                @for (city of modalCities; track city) {
+                  <span class="city-chip">{{ city }} <button (click)="removeModalCity(city)">&times;</button></span>
+                }
+              </div>
+            }
+            <div class="autocomplete-wrapper">
+              <input type="text"
+                     placeholder="Rechercher une ville..."
+                     [(ngModel)]="modalCityInput"
+                     name="modalCityInput"
+                     (input)="onModalCityInput()"
+                     (blur)="hideSuggestions('modalCity')"
+                     autocomplete="off" />
+              @if (showModalCitySuggestions) {
+                <div class="suggestions-dropdown">
+                  @for (s of modalCitySuggestions; track s.label) {
+                    <button class="suggestion-item" (mousedown)="selectModalCity(s)">{{ s.label }}</button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <label class="field-label">Type de bien</label>
+          <div class="type-checkboxes">
+            <label class="checkbox-option">
+              <input type="checkbox" [(ngModel)]="modalPropertyTypes.appartement" name="mTypeAppart" />
+              <span>Appartement</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" [(ngModel)]="modalPropertyTypes.maison" name="mTypeMaison" />
+              <span>Maison</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" [(ngModel)]="modalPropertyTypes.terrain" name="mTypeTerrain" />
+              <span>Terrain</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" [(ngModel)]="modalPropertyTypes.parking" name="mTypeParking" />
+              <span>Parking</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" [(ngModel)]="modalPropertyTypes.autre" name="mTypeAutre" />
+              <span>Autre</span>
+            </label>
+          </div>
+
+          <label class="field-label">Loyer</label>
+          <div class="dual-input">
+            <div class="input-with-unit">
+              <input type="number" placeholder="Min" [(ngModel)]="modalMinPrice" name="modalMinPrice" />
+              <span class="unit">&euro;</span>
+            </div>
+            <div class="input-with-unit">
+              <input type="number" placeholder="Max" [(ngModel)]="modalMaxPrice" name="modalMaxPrice" />
+              <span class="unit">&euro;</span>
+            </div>
+          </div>
+
+          <label class="field-label">Pi&egrave;ces</label>
+          <div class="number-chips">
+            @for (n of roomOptions; track n) {
+              <button class="num-chip"
+                      [class.active-min]="modalMinRooms === n"
+                      [class.active-max]="modalMaxRooms === n"
+                      [class.in-range]="isRoomInRange(modalMinRooms, modalMaxRooms, n)"
+                      (click)="toggleModalRoom(modalMinRooms === null ? 'modalMinRooms' : (modalMaxRooms === null && n >= modalMinRooms ? 'modalMaxRooms' : 'modalMinRooms'), n)">
+                {{ n === 8 ? '8+' : n }}
+              </button>
+            }
+          </div>
+
+          <label class="field-label">Chambres</label>
+          <div class="number-chips">
+            @for (n of roomOptions; track n) {
+              <button class="num-chip"
+                      [class.active-min]="modalMinBedrooms === n"
+                      [class.active-max]="modalMaxBedrooms === n"
+                      [class.in-range]="isRoomInRange(modalMinBedrooms, modalMaxBedrooms, n)"
+                      (click)="toggleModalRoom(modalMinBedrooms === null ? 'modalMinBedrooms' : (modalMaxBedrooms === null && n >= modalMinBedrooms ? 'modalMaxBedrooms' : 'modalMinBedrooms'), n)">
+                {{ n === 8 ? '8+' : n }}
+              </button>
+            }
+          </div>
+
+          <label class="field-label">Surface habitable</label>
+          <div class="dual-input">
+            <div class="input-with-unit">
+              <input type="number" placeholder="Min" [(ngModel)]="modalMinSurface" name="modalMinSurface" />
+              <span class="unit">m&sup2;</span>
+            </div>
+            <div class="input-with-unit">
+              <input type="number" placeholder="Max" [(ngModel)]="modalMaxSurface" name="modalMaxSurface" />
+              <span class="unit">m&sup2;</span>
+            </div>
+          </div>
+
+          <label class="field-label">Meubl&eacute;</label>
+          <div class="select-wrapper">
+            <select [(ngModel)]="modalFurnished" name="modalFurnished">
+              <option value="">Tous</option>
+              <option value="meuble">Meubl&eacute;</option>
+              <option value="non_meuble">Non meubl&eacute;</option>
+            </select>
+          </div>
+        } @else {
+          <label class="field-label">Poste *</label>
+          <input type="text" placeholder="Developpeur, Designer..." [(ngModel)]="modalJobKeyword" name="modalJobKeyword" />
+
+          <label class="field-label">Villes *</label>
+          <div class="city-autocomplete">
+            @if (modalJobCities.length > 0) {
+              <div class="city-chips">
+                @for (city of modalJobCities; track city) {
+                  <span class="city-chip">{{ city }} <button (click)="removeModalJobCity(city)">&times;</button></span>
+                }
+              </div>
+            }
+            <div class="autocomplete-wrapper">
+              <input type="text"
+                     placeholder="Rechercher une ville..."
+                     [(ngModel)]="modalJobCityInput"
+                     name="modalJobCityInput"
+                     (input)="onModalJobCityInput()"
+                     (blur)="hideSuggestions('modalJobCity')"
+                     autocomplete="off" />
+              @if (showModalJobCitySuggestions) {
+                <div class="suggestions-dropdown">
+                  @for (s of modalJobCitySuggestions; track s.label) {
+                    <button class="suggestion-item" (mousedown)="selectModalJobCity(s)">{{ s.label }}</button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeModal()">Annuler</button>
+        <button class="btn btn-primary" (click)="saveAutoSearch()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+}

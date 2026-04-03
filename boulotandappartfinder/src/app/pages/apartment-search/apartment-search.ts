@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApartmentService, Apartment } from '../../services/apartment.service';
 
 interface Filters {
+  statusGroup: string;
   city: string;
   priceRange: string;
   minPrice: number;
@@ -20,6 +21,7 @@ interface Filters {
 })
 export class ApartmentSearch implements OnInit {
   filters: Filters = {
+    statusGroup: '',
     city: '',
     priceRange: 'custom',
     minPrice: 300,
@@ -53,8 +55,14 @@ export class ApartmentSearch implements OnInit {
 
     this.apartmentService.getAll(filters).subscribe({
       next: (data) => {
-        this.results.set(data);
-        this.totalCount.set(data.length);
+        let filtered = data;
+        if (this.filters.statusGroup === 'nouveau') {
+          filtered = data.filter((apt) => apt.status === 'nouveau');
+        } else if (this.filters.statusGroup === 'en_cours') {
+          filtered = data.filter((apt) => apt.status === 'contacte' || apt.status === 'visite');
+        }
+        this.results.set(filtered);
+        this.totalCount.set(filtered.length);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -108,6 +116,7 @@ export class ApartmentSearch implements OnInit {
 
   reset(): void {
     this.filters = {
+      statusGroup: '',
       city: '',
       priceRange: 'custom',
       minPrice: 300,

@@ -23,36 +23,45 @@ export function getLastFilters(id: string): Record<string, unknown> | null {
 }
 
 router.post('/apartments', async (req: Request, res: Response) => {
-  const { city, minPrice, maxPrice, propertyTypes, minRooms, maxRooms, minBedrooms, maxBedrooms, minSurface, maxSurface, minLandSurface, maxLandSurface, furnished } = req.body;
+  const { cities, city, minPrice, maxPrice, propertyTypes, minRooms, maxRooms, minBedrooms, maxBedrooms, minSurface, maxSurface, minLandSurface, maxLandSurface, furnished } = req.body;
 
-  if (!city) {
-    res.status(400).json({ error: 'city is required' });
+  // Support both `cities` array and legacy `city` string
+  const cityList: string[] = cities && cities.length > 0 ? cities : city ? [city] : [];
+
+  if (cityList.length === 0) {
+    res.status(400).json({ error: 'city or cities is required' });
     return;
   }
 
-  const filters = {
-    city, minPrice, maxPrice, propertyTypes,
+  const baseFilters = {
+    minPrice, maxPrice, propertyTypes,
     minRooms, maxRooms, minBedrooms, maxBedrooms,
     minSurface, maxSurface, minLandSurface, maxLandSurface,
     furnished,
   };
 
   // Save filters so the scheduler reuses them
-  saveLastFilters('apartments', filters);
+  saveLastFilters('apartments', { cities: cityList, ...baseFilters });
 
   try {
-    // Run both scrapers sequentially (they each open a browser)
-    console.log('[Scrape] Starting LeBonCoin...');
-    const lbcCount = await scrapeLeboncoin(filters);
-    console.log(`[Scrape] LeBonCoin done: ${lbcCount} new listings`);
+    let total = 0;
 
-    console.log('[Scrape] Starting SeLoger...');
-    const slCount = await scrapeSeloger(filters);
-    console.log(`[Scrape] SeLoger done: ${slCount} new listings`);
+    for (const c of cityList) {
+      const filters = { city: c, ...baseFilters };
 
-    const total = lbcCount + slCount;
+      console.log(`[Scrape] Starting LeBonCoin for ${c}...`);
+      const lbcCount = await scrapeLeboncoin(filters);
+      console.log(`[Scrape] LeBonCoin (${c}) done: ${lbcCount} new listings`);
+      total += lbcCount;
+
+      console.log(`[Scrape] Starting SeLoger for ${c}...`);
+      const slCount = await scrapeSeloger(filters);
+      console.log(`[Scrape] SeLoger (${c}) done: ${slCount} new listings`);
+      total += slCount;
+    }
+
     res.json({
-      message: `${total} annonces scrapees (LeBonCoin: ${lbcCount}, SeLoger: ${slCount})`,
+      message: `${total} annonces scrapees pour ${cityList.join(', ')}`,
       count: total,
     });
   } catch (err) {
@@ -65,44 +74,46 @@ router.post('/apartments', async (req: Request, res: Response) => {
 router.post('/leboncoin-captcha', async (_req: Request, res: Response) => {
   try {
     res.json({ message: 'Browser ouvert. Résolvez le captcha dans la fenêtre du navigateur.' });
-    // Run in background — the response is sent immediately
     await solveLeboncoinCaptcha();
   } catch (err) {
     console.error('Captcha solve error:', err);
-    // Response already sent, just log
   }
 });
 
 router.post('/jobs', async (req: Request, res: Response) => {
-  const { keyword, city } = req.body;
+  const { keyword, cities, city } = req.body;
 
-  if (!keyword || !city) {
-    res.status(400).json({ error: 'keyword and city are required' });
+  const cityList: string[] = cities && cities.length > 0 ? cities : city ? [city] : [];
+
+  if (!keyword || cityList.length === 0) {
+    res.status(400).json({ error: 'keyword and city/cities are required' });
     return;
   }
 
-  // Save filters so the scheduler reuses them
-  saveLastFilters('jobs', { keyword, city });
+  saveLastFilters('jobs', { keyword, cities: cityList });
 
   try {
-    // HelloWork: static HTML scraping (fast)
-    console.log('[Scrape] Starting HelloWork...');
-    const hwCount = await scrapeHellowork(keyword, city);
-    console.log(`[Scrape] HelloWork done: ${hwCount} new listings`);
+    let total = 0;
 
-    // Meteojob: static HTML scraping (fast)
-    console.log('[Scrape] Starting Meteojob...');
-    const mjCount = await scrapeMeteojob(keyword, city);
-    console.log(`[Scrape] Meteojob done: ${mjCount} new listings`);
+    for (const c of cityList) {
+      console.log(`[Scrape] Starting HelloWork for ${keyword} in ${c}...`);
+      const hwCount = await scrapeHellowork(keyword, c);
+      console.log(`[Scrape] HelloWork (${c}) done: ${hwCount} new listings`);
+      total += hwCount;
 
-    // WTTJ: Puppeteer (slower, opens browser)
-    console.log('[Scrape] Starting Welcome to the Jungle...');
-    const wttjCount = await scrapeWelcometothejungle(keyword, city);
-    console.log(`[Scrape] WTTJ done: ${wttjCount} new listings`);
+      console.log(`[Scrape] Starting Meteojob for ${keyword} in ${c}...`);
+      const mjCount = await scrapeMeteojob(keyword, c);
+      console.log(`[Scrape] Meteojob (${c}) done: ${mjCount} new listings`);
+      total += mjCount;
 
-    const total = hwCount + mjCount + wttjCount;
+      console.log(`[Scrape] Starting Welcome to the Jungle for ${keyword} in ${c}...`);
+      const wttjCount = await scrapeWelcometothejungle(keyword, c);
+      console.log(`[Scrape] WTTJ (${c}) done: ${wttjCount} new listings`);
+      total += wttjCount;
+    }
+
     res.json({
-      message: `${total} offres scrapees (HelloWork: ${hwCount}, Meteojob: ${mjCount}, WTTJ: ${wttjCount})`,
+      message: `${total} offres scrapees pour ${cityList.join(', ')}`,
       count: total,
     });
   } catch (err) {

@@ -71,6 +71,15 @@ function initTables(db: Database.Database): void {
       filters TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS auto_searches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL CHECK(type IN ('apartments', 'jobs')),
+      name TEXT NOT NULL,
+      filters TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Add favorite column if missing (migration-safe)

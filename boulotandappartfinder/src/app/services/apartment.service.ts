@@ -27,7 +27,8 @@ export interface Apartment {
 }
 
 export interface ScrapeFilters {
-  city: string;
+  city?: string;
+  cities?: string[];
   minPrice?: number;
   maxPrice?: number;
   propertyTypes?: string[];

@@ -4,7 +4,7 @@ import { scrapeSeloger } from '../scrapers/seloger';
 import { scrapeHellowork } from '../scrapers/hellowork';
 import { scrapeMeteojob } from '../scrapers/meteojob';
 import { scrapeWelcometothejungle } from '../scrapers/welcometothejungle';
-import { getLastFilters } from '../routes/scrape';
+import { getDb } from '../database/schema';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 
@@ -15,92 +15,102 @@ export interface SchedulerConfig {
   jobCity: string;
 }
 
-function getDefaultConfig(): SchedulerConfig {
-  return {
-    apartmentCity: process.env.DEFAULT_APARTMENT_CITY || 'Bordeaux',
-    apartmentMaxPrice: process.env.DEFAULT_APARTMENT_MAX_PRICE
-      ? parseInt(process.env.DEFAULT_APARTMENT_MAX_PRICE, 10)
-      : undefined,
-    jobKeyword: process.env.DEFAULT_JOB_KEYWORD || 'developpeur',
-    jobCity: process.env.DEFAULT_JOB_CITY || 'Bordeaux',
-  };
+interface AutoSearchRow {
+  id: number;
+  type: 'apartments' | 'jobs';
+  name: string;
+  filters: string;
+  active: number;
 }
 
-async function runScheduledScrape(config: SchedulerConfig): Promise<void> {
+function getActiveAutoSearches(): AutoSearchRow[] {
+  const db = getDb();
+  return db.prepare('SELECT * FROM auto_searches WHERE active = 1').all() as AutoSearchRow[];
+}
+
+async function runScheduledScrape(): Promise<void> {
   console.log(`[Scheduler] Starting scheduled scrape at ${new Date().toISOString()}`);
-  console.log(`[Scheduler] Config:`, JSON.stringify(config));
 
-  try {
-    // Scrape apartments — use last manual search filters if available
-    console.log('[Scheduler] Scraping apartments...');
-    const savedAptFilters = getLastFilters('apartments');
-    const apartmentFilters = savedAptFilters
-      ? savedAptFilters as { city: string; maxPrice?: number; [key: string]: unknown }
-      : { city: config.apartmentCity, maxPrice: config.apartmentMaxPrice };
-    console.log(`[Scheduler] Using apartment filters: ${JSON.stringify(apartmentFilters)}`);
+  const searches = getActiveAutoSearches();
 
-    let totalApartments = 0;
-    try {
-      const lbcCount = await scrapeLeboncoin(apartmentFilters);
-      console.log(`[Scheduler] LeBonCoin: ${lbcCount} new apartments`);
-      totalApartments += lbcCount;
-    } catch (err) {
-      console.error('[Scheduler] LeBonCoin failed:', err);
-    }
-
-    // Wait between scrapers to avoid rate limiting
-    await new Promise(r => setTimeout(r, 30000));
-
-    try {
-      const slCount = await scrapeSeloger(apartmentFilters);
-      console.log(`[Scheduler] SeLoger: ${slCount} new apartments`);
-      totalApartments += slCount;
-    } catch (err) {
-      console.error('[Scheduler] SeLoger failed:', err);
-    }
-
-    await new Promise(r => setTimeout(r, 30000));
-
-    // Scrape jobs — use last manual search filters if available
-    console.log('[Scheduler] Scraping jobs...');
-    const savedJobFilters = getLastFilters('jobs') as { keyword: string; city: string } | null;
-    const jobKeyword = savedJobFilters?.keyword || config.jobKeyword;
-    const jobCity = savedJobFilters?.city || config.jobCity;
-    console.log(`[Scheduler] Using job filters: keyword=${jobKeyword}, city=${jobCity}`);
-    let totalJobs = 0;
-
-    try {
-      const hwCount = await scrapeHellowork(jobKeyword, jobCity);
-      console.log(`[Scheduler] HelloWork: ${hwCount} new jobs`);
-      totalJobs += hwCount;
-    } catch (err) {
-      console.error('[Scheduler] HelloWork failed:', err);
-    }
-
-    await new Promise(r => setTimeout(r, 10000));
-
-    try {
-      const mjCount = await scrapeMeteojob(jobKeyword, jobCity);
-      console.log(`[Scheduler] Meteojob: ${mjCount} new jobs`);
-      totalJobs += mjCount;
-    } catch (err) {
-      console.error('[Scheduler] Meteojob failed:', err);
-    }
-
-    await new Promise(r => setTimeout(r, 30000));
-
-    try {
-      const wttjCount = await scrapeWelcometothejungle(jobKeyword, jobCity);
-      console.log(`[Scheduler] WTTJ: ${wttjCount} new jobs`);
-      totalJobs += wttjCount;
-    } catch (err) {
-      console.error('[Scheduler] WTTJ failed:', err);
-    }
-
-    console.log(`[Scheduler] Complete! Total: ${totalApartments} apartments, ${totalJobs} jobs`);
-  } catch (err) {
-    console.error('[Scheduler] Scraping failed:', err);
+  if (searches.length === 0) {
+    console.log('[Scheduler] No active auto searches configured, skipping.');
+    return;
   }
+
+  console.log(`[Scheduler] Found ${searches.length} active auto searches`);
+
+  const aptSearches = searches.filter((s) => s.type === 'apartments');
+  const jobSearches = searches.filter((s) => s.type === 'jobs');
+
+  // Scrape apartments for each active apartment search
+  for (const search of aptSearches) {
+    const parsed = JSON.parse(search.filters);
+    // Support both `cities` array and legacy `city` string
+    const cityList: string[] = parsed.cities || (parsed.city ? [parsed.city] : []);
+    console.log(`[Scheduler] Scraping apartments: "${search.name}" — cities: ${cityList.join(', ')}`);
+
+    for (const c of cityList) {
+      const filters = { ...parsed, city: c };
+      delete filters.cities;
+
+      try {
+        const lbcCount = await scrapeLeboncoin(filters);
+        console.log(`[Scheduler] LeBonCoin (${search.name}/${c}): ${lbcCount} new apartments`);
+      } catch (err) {
+        console.error(`[Scheduler] LeBonCoin (${search.name}/${c}) failed:`, err);
+      }
+
+      await new Promise((r) => setTimeout(r, 30000));
+
+      try {
+        const slCount = await scrapeSeloger(filters);
+        console.log(`[Scheduler] SeLoger (${search.name}/${c}): ${slCount} new apartments`);
+      } catch (err) {
+        console.error(`[Scheduler] SeLoger (${search.name}/${c}) failed:`, err);
+      }
+
+      await new Promise((r) => setTimeout(r, 30000));
+    }
+  }
+
+  // Scrape jobs for each active job search
+  for (const search of jobSearches) {
+    const parsed = JSON.parse(search.filters) as { keyword: string; cities?: string[]; city?: string };
+    const cityList: string[] = parsed.cities || (parsed.city ? [parsed.city] : []);
+    console.log(`[Scheduler] Scraping jobs: "${search.name}" — keyword: ${parsed.keyword}, cities: ${cityList.join(', ')}`);
+
+    for (const c of cityList) {
+      try {
+        const hwCount = await scrapeHellowork(parsed.keyword, c);
+        console.log(`[Scheduler] HelloWork (${search.name}/${c}): ${hwCount} new jobs`);
+      } catch (err) {
+        console.error(`[Scheduler] HelloWork (${search.name}/${c}) failed:`, err);
+      }
+
+      await new Promise((r) => setTimeout(r, 10000));
+
+      try {
+        const mjCount = await scrapeMeteojob(parsed.keyword, c);
+        console.log(`[Scheduler] Meteojob (${search.name}/${c}): ${mjCount} new jobs`);
+      } catch (err) {
+        console.error(`[Scheduler] Meteojob (${search.name}/${c}) failed:`, err);
+      }
+
+      await new Promise((r) => setTimeout(r, 30000));
+
+      try {
+        const wttjCount = await scrapeWelcometothejungle(parsed.keyword, c);
+        console.log(`[Scheduler] WTTJ (${search.name}/${c}): ${wttjCount} new jobs`);
+      } catch (err) {
+        console.error(`[Scheduler] WTTJ (${search.name}/${c}) failed:`, err);
+      }
+
+      await new Promise((r) => setTimeout(r, 30000));
+    }
+  }
+
+  console.log(`[Scheduler] Complete!`);
 }
 
 export function startScheduler(cronExpression?: string): void {
@@ -117,10 +127,9 @@ export function startScheduler(cronExpression?: string): void {
   }
 
   console.log(`[Scheduler] Starting scheduler with cron: ${expression}`);
-  const config = getDefaultConfig();
 
   scheduledTask = cron.schedule(expression, () => {
-    runScheduledScrape(config);
+    runScheduledScrape();
   });
 
   console.log('[Scheduler] Scheduler started successfully');
@@ -141,8 +150,6 @@ export function getSchedulerStatus(): { running: boolean; cron: string } {
   };
 }
 
-// Manual trigger for immediate scrape
-export async function triggerScrapeNow(config?: Partial<SchedulerConfig>): Promise<void> {
-  const fullConfig = { ...getDefaultConfig(), ...config };
-  await runScheduledScrape(fullConfig);
+export async function triggerScrapeNow(): Promise<void> {
+  await runScheduledScrape();
 }

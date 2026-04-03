@@ -6,6 +6,16 @@
       <button class="reset-btn" (click)="reset()">Reset</button>
     </div>
 
+    <!-- Status Filter -->
+    <div class="filter-section">
+      <h3>Statut</h3>
+      <div class="type-chips">
+        <button class="chip" [class.active]="filters.statusGroup === ''" (click)="filters.statusGroup = ''; onFilterChange()">Tous</button>
+        <button class="chip" [class.active]="filters.statusGroup === 'nouveau'" (click)="filters.statusGroup = 'nouveau'; onFilterChange()">Nouveaux</button>
+        <button class="chip" [class.active]="filters.statusGroup === 'en_cours'" (click)="filters.statusGroup = 'en_cours'; onFilterChange()">En cours</button>
+      </div>
+    </div>
+
     <!-- Display Filters -->
     <div class="filter-section">
       <h3>Localisation</h3>

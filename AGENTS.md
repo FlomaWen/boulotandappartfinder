@@ -57,3 +57,66 @@ This project follows **TDD (Test-Driven Development)**: write tests first, then 
 - Prettier: single quotes, 100 char print width
 - Angular schematics configured to skip test file generation (tests are written manually)
 - French used for routes and domain status values
+
+
+## UI Design — Style Guide
+
+### Philosophy
+Clean, minimal, and intentional. Every element earns its place.
+Inspired by industrial design: raw, functional, yet refined.
+No gradients. No shadows. No decoration for its own sake.
+
+---
+
+### Color Palette
+- **Background:** `#0A0A0A` (near-black)
+- **Surface:** `#111111` / `#1A1A1A`
+- **Border:** `#2A2A2A` (subtle, 1px only)
+- **Primary text:** `#F5F5F5`
+- **Secondary text:** `#6B6B6B`
+- **Accent:** `#FF3C3C` ← adjust to your brand color
+- **Success:** `#3CFF8F`
+- **Muted:** `#333333`
+
+> Dark mode first. Light mode is optional.
+
+---
+
+### Typography
+- **Font:** `Inter`, `DM Mono`, or system monospace for data/labels
+- **Scale:** 11 / 13 / 15 / 20 / 28 / 40px — strict hierarchy, no in-between
+- **Weight:** Regular (400) for body, Medium (500) for labels, no Bold unless necessary
+- **Letter-spacing:** `+0.08em` on uppercase labels and tags
+- **Line-height:** 1.4 for body, 1.1 for headings
+
+---
+
+### Layout & Spacing
+- Base unit: **8px**. All spacing is a multiple of 8 (8, 16, 24, 32, 48…)
+- Prefer full-width sections with generous internal padding (32–48px)
+- Asymmetry is allowed; rigid grids are not required
+- **No rounded corners** — or use a very tight `border-radius: 2px` max
+- Dividers: 1px `#2A2A2A`, used sparingly
+
+---
+
+### Components
+- **Buttons:** Outlined (`border: 1px solid #2A2A2A`) or ghost style. Filled only for primary CTA.
+- **Inputs:** No floating labels. Minimal border, clear focus ring in accent color.
+- **Cards:** Flat surfaces, 1px border, no shadow.
+- **Tags/Badges:** Monospace font, uppercase, small, tight padding.
+- **Icons:** Line-style only, 16–20px, stroke-width 1–1.5px.
+- **Dot/Grid motifs:** Optional background texture — subtle dot matrix at 10% opacity.
+
+---
+
+### Motion
+- Transitions: `150–200ms`, `ease-out` only
+- No bounces, no springs, no playful easing
+- Purposeful only: reveal, focus shift, state change
+
+---
+
+### Tone
+> Raw. Functional. No filler.
+> If it doesn't communicate something, remove it.

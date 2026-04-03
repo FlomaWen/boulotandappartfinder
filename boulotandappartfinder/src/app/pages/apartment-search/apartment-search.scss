@@ -85,9 +85,12 @@
     input[type='range'] {
       position: absolute; width: 100%; top: 0; height: 4px;
       background: transparent; appearance: none; pointer-events: none;
+      &::-webkit-slider-runnable-track {
+        height: 4px; background: #F5F5F5; border-radius: 2px;
+      }
       &::-webkit-slider-thumb {
         appearance: none; width: 16px; height: 16px; border-radius: 2px;
-        background: #FF3C3C; border: none;
+        background: #F5F5F5; border: none; margin-top: -6px;
         cursor: pointer; pointer-events: all; position: relative; z-index: 2;
       }
       &:first-child { z-index: 1; }

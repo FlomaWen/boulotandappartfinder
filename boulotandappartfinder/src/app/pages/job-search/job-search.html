@@ -93,7 +93,7 @@
   <!-- Main Content -->
   <main class="main-content">
     <div class="results-header">
-      <p class="results-count">Resultats : <strong>{{ results().length }}</strong> offres CDI</p>
+      <p class="results-count">Resultats : <strong>{{ totalCount() }}</strong> offres CDI</p>
     </div>
 
     @if (loading()) {
@@ -101,6 +101,20 @@
         <p>Chargement...</p>
       </div>
     } @else if (results().length > 0) {
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)">&larr;</button>
+          @for (page of getPageNumbers(); track $index) {
+            @if (page === -1) {
+              <span class="page-ellipsis">...</span>
+            } @else {
+              <button class="page-btn" [class.active]="page === currentPage()" (click)="goToPage(page)">{{ page }}</button>
+            }
+          }
+          <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)">&rarr;</button>
+        </div>
+      }
+
       <div class="jobs-list">
         @for (job of results(); track job.id) {
           <div class="job-card" [class.applied]="job.status === 'postule'" [class.interview]="job.status === 'entretien'">
@@ -167,6 +181,20 @@
           </div>
         }
       </div>
+
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)">&larr;</button>
+          @for (page of getPageNumbers(); track $index) {
+            @if (page === -1) {
+              <span class="page-ellipsis">...</span>
+            } @else {
+              <button class="page-btn" [class.active]="page === currentPage()" (click)="goToPage(page)">{{ page }}</button>
+            }
+          }
+          <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)">&rarr;</button>
+        </div>
+      }
     } @else {
       <div class="empty-state">
         <h3>Aucune offre</h3>

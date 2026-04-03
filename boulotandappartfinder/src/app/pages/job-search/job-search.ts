@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { JobService, Job } from '../../services/job.service';
 
@@ -27,9 +27,17 @@ export class JobSearch implements OnInit {
     experience: '',
   };
 
-  readonly results = signal<Job[]>([]);
-  readonly totalCount = signal(0);
+  readonly allResults = signal<Job[]>([]);
   readonly loading = signal(false);
+  readonly currentPage = signal(1);
+  readonly pageSize = 20;
+
+  readonly totalCount = computed(() => this.allResults().length);
+  readonly totalPages = computed(() => Math.ceil(this.totalCount() / this.pageSize));
+  readonly results = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.allResults().slice(start, start + this.pageSize);
+  });
 
   constructor(private jobService: JobService) {}
 
@@ -39,6 +47,7 @@ export class JobSearch implements OnInit {
 
   loadJobs(): void {
     this.loading.set(true);
+    this.currentPage.set(1);
     const filters: Record<string, string | number> = {};
     if (this.filters.keyword) filters['keyword'] = this.filters.keyword;
     if (this.filters.city) filters['city'] = this.filters.city;
@@ -49,8 +58,7 @@ export class JobSearch implements OnInit {
 
     this.jobService.getAll(filters).subscribe({
       next: (data) => {
-        this.results.set(data);
-        this.totalCount.set(data.length);
+        this.allResults.set(data);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -64,9 +72,9 @@ export class JobSearch implements OnInit {
   updateStatus(job: Job, status: string): void {
     this.jobService.updateStatus(job.id, status).subscribe(() => {
       if (status === 'supprime') {
-        this.results.update((list) => list.filter((j) => j.id !== job.id));
+        this.allResults.update((list) => list.filter((j) => j.id !== job.id));
       } else {
-        this.results.update((list) =>
+        this.allResults.update((list) =>
           list.map((j) => (j.id === job.id ? { ...j, status: status as Job['status'] } : j))
         );
       }
@@ -75,7 +83,7 @@ export class JobSearch implements OnInit {
 
   toggleFavorite(job: Job): void {
     this.jobService.toggleFavorite(job.id).subscribe((res) => {
-      this.results.update((list) =>
+      this.allResults.update((list) =>
         list.map((j) => (j.id === job.id ? { ...j, favorite: res.favorite } : j))
       );
     });
@@ -118,6 +126,33 @@ export class JobSearch implements OnInit {
       remote: '',
       experience: '',
     };
+    this.currentPage.set(1);
     this.loadJobs();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const total = this.totalPages();
+    const current = this.currentPage();
+    const pages: number[] = [];
+    
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (current > 3) pages.push(-1);
+      for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+        pages.push(i);
+      }
+      if (current < total - 2) pages.push(-1);
+      pages.push(total);
+    }
+    return pages;
   }
 }

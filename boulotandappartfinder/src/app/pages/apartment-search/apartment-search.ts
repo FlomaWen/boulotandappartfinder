@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApartmentService, Apartment } from '../../services/apartment.service';
 
@@ -31,9 +31,17 @@ export class ApartmentSearch implements OnInit {
     bathrooms: '',
   };
 
-  readonly results = signal<Apartment[]>([]);
-  readonly totalCount = signal(0);
+  readonly allResults = signal<Apartment[]>([]);
   readonly loading = signal(false);
+  readonly currentPage = signal(1);
+  readonly pageSize = 20;
+
+  readonly totalCount = computed(() => this.allResults().length);
+  readonly totalPages = computed(() => Math.ceil(this.totalCount() / this.pageSize));
+  readonly results = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.allResults().slice(start, start + this.pageSize);
+  });
 
   constructor(private apartmentService: ApartmentService) {}
 
@@ -43,6 +51,7 @@ export class ApartmentSearch implements OnInit {
 
   loadApartments(): void {
     this.loading.set(true);
+    this.currentPage.set(1);
     const filters: Record<string, string | number> = {};
     if (this.filters.city) filters['city'] = this.filters.city;
     if (this.filters.priceRange !== 'custom') {
@@ -61,8 +70,7 @@ export class ApartmentSearch implements OnInit {
         } else if (this.filters.statusGroup === 'en_cours') {
           filtered = data.filter((apt) => apt.status === 'contacte' || apt.status === 'visite');
         }
-        this.results.set(filtered);
-        this.totalCount.set(filtered.length);
+        this.allResults.set(filtered);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -87,9 +95,9 @@ export class ApartmentSearch implements OnInit {
   updateStatus(apt: Apartment, status: string): void {
     this.apartmentService.updateStatus(apt.id, status).subscribe(() => {
       if (status === 'supprime') {
-        this.results.update((list) => list.filter((a) => a.id !== apt.id));
+        this.allResults.update((list) => list.filter((a) => a.id !== apt.id));
       } else {
-        this.results.update((list) =>
+        this.allResults.update((list) =>
           list.map((a) => (a.id === apt.id ? { ...a, status: status as Apartment['status'] } : a))
         );
       }
@@ -98,7 +106,7 @@ export class ApartmentSearch implements OnInit {
 
   toggleFavorite(apt: Apartment): void {
     this.apartmentService.toggleFavorite(apt.id).subscribe((res) => {
-      this.results.update((list) =>
+      this.allResults.update((list) =>
         list.map((a) => (a.id === apt.id ? { ...a, favorite: res.favorite } : a))
       );
     });
@@ -125,6 +133,33 @@ export class ApartmentSearch implements OnInit {
       bedrooms: '',
       bathrooms: '',
     };
+    this.currentPage.set(1);
     this.loadApartments();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const total = this.totalPages();
+    const current = this.currentPage();
+    const pages: number[] = [];
+    
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (current > 3) pages.push(-1);
+      for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+        pages.push(i);
+      }
+      if (current < total - 2) pages.push(-1);
+      pages.push(total);
+    }
+    return pages;
   }
 }

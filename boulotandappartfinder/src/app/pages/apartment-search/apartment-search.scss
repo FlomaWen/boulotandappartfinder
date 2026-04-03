@@ -220,6 +220,50 @@
   h3 { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
 }
 
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 24px 0;
+}
+
+.page-btn {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #2A2A2A;
+  border-radius: 2px;
+  background: transparent;
+  color: #6B6B6B;
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+
+  &:hover:not(:disabled) {
+    border-color: #FF3C3C;
+    color: #FF3C3C;
+  }
+
+  &.active {
+    background: #FF3C3C;
+    border-color: #FF3C3C;
+    color: #0A0A0A;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.page-ellipsis {
+  color: #6B6B6B;
+  font-family: 'DM Mono', monospace;
+}
+
 @media (max-width: 768px) {
   .apartment-page { flex-direction: column; }
   .sidebar { width: 100%; min-width: unset; position: static; }
